@@ -122,13 +122,7 @@ typedef struct {
   int sequence_complete[NUM_TARGETS];  // per-target completion flag
 } GridState;
 
-// ── Layout Constants ──
-
-#define CELL_PAD_X 12
-#define CELL_PAD_Y 4
-#define SECTION_GAP 24
-#define PANEL_MARGIN 16
-#define TIMER_BAR_HEIGHT 8
+// Layout is computed dynamically in DisplayBreachProtocol from screen size.
 
 // ── Color System ──
 
@@ -1083,9 +1077,11 @@ void CheckSequenceCompletion(GridState *gs) {
 }
 
 // ── Breach Protocol: Section Renderers ──
+// All layout dimensions are computed in DisplayBreachProtocol from screen size
+// and passed down. This ensures the UI scales to fill ~65% of the screen.
 
-void DrawTimerSection(int monitor, int x, int y, int w, int th, int to,
-                      int remaining, int max_timeout) {
+void DrawTimerSection(int monitor, int x, int y, int bar_w, int bar_h,
+                      int th, int to, int remaining, int max_timeout) {
   enum ColorIndex color = remaining < 30 ? COLOR_RED : COLOR_GREEN;
 
   // "BREACH TIME REMAINING" label.
@@ -1099,37 +1095,33 @@ void DrawTimerSection(int monitor, int x, int y, int w, int th, int to,
            remaining % 60);
   int timebuf_len = strlen(timebuf);
   int tw = TextWidth(timebuf, timebuf_len);
-  int tx = x + TextWidth(label, label_len) + 20;
-  DrawRect(monitor, tx - 4, y, tw + 8, th, color);
+  int tx = x + TextWidth(label, label_len) + th;
+  DrawRect(monitor, tx - 6, y - 2, tw + 12, th + 4, color);
   DrawStringColor(monitor, tx, y + to, color, timebuf, timebuf_len);
 
-  // Progress bar.
-  int bar_y = y + th + 4;
-  int bar_w = w - 20;
-  if (bar_w < 10) bar_w = 10;
+  // Progress bar below label.
+  int bar_y = y + th + th / 2;
   float ratio = max_timeout > 0 ? (float)remaining / max_timeout : 0;
   if (ratio > 1.0f) ratio = 1.0f;
   if (ratio < 0.0f) ratio = 0.0f;
   int fill_w = (int)(bar_w * ratio);
 
-  DrawRect(monitor, x, bar_y, bar_w, TIMER_BAR_HEIGHT, color);
+  DrawRect(monitor, x, bar_y, bar_w, bar_h, color);
   if (fill_w > 2) {
-    FillRect(monitor, x + 1, bar_y + 1, fill_w - 2, TIMER_BAR_HEIGHT - 2,
-             color);
+    FillRect(monitor, x + 1, bar_y + 1, fill_w - 2, bar_h - 2, color);
   }
 }
 
-void DrawBufferSection(int monitor, const GridState *gs, int x, int y, int th,
-                       int to) {
+void DrawBufferSection(int monitor, const GridState *gs, int x, int y,
+                       int slot_w, int slot_h, int th, int to) {
   // "BUFFER" header.
   const char *header = "BUFFER";
   int header_len = strlen(header);
   DrawStringColor(monitor, x, y + to, COLOR_GREEN, header, header_len);
-  y += th;
+  y += th + th / 2;
 
-  int slot_w = TextWidth("BD", 2) + 16;
-  int slot_h = th + 8;
-  int slot_gap = 4;
+  int slot_gap = th / 3;
+  if (slot_gap < 4) slot_gap = 4;
 
   for (int i = 0; i < BUFFER_SLOTS; i++) {
     int sx = x + i * (slot_w + slot_gap);
@@ -1140,25 +1132,24 @@ void DrawBufferSection(int monitor, const GridState *gs, int x, int y, int th,
       // Filled slot — show hex code.
       const char *code = HEX_CODES[gs->buffer[i]];
       int cw = TextWidth(code, 2);
-      DrawStringColor(monitor, sx + (slot_w - cw) / 2, y + to + 4,
-                      COLOR_YELLOW, code, 2);
+      DrawStringColor(monitor, sx + (slot_w - cw) / 2,
+                      y + (slot_h - th) / 2 + to, COLOR_YELLOW, code, 2);
     }
   }
 }
 
 void DrawCodeMatrix(int monitor, const GridState *gs, int x, int y, int cell_w,
-                    int cell_h, int th, int to) {
+                    int cell_h, int panel_w, int panel_h, int th, int to) {
   // Panel border.
-  int panel_w = GRID_SIZE * cell_w + 2 * PANEL_MARGIN;
-  int panel_h = GRID_SIZE * cell_h + th + PANEL_MARGIN * 2;
   DrawRect(monitor, x, y, panel_w, panel_h, COLOR_DIM);
 
   // "CODE MATRIX" header.
+  int pad = (panel_w - GRID_SIZE * cell_w) / 2;
   const char *header = "CODE MATRIX";
   int header_len = strlen(header);
-  DrawStringColor(monitor, x + PANEL_MARGIN, y + to, COLOR_GREEN, header,
+  DrawStringColor(monitor, x + pad, y + to + th / 4, COLOR_GREEN, header,
                   header_len);
-  y += th + PANEL_MARGIN;
+  int grid_y = y + th * 2;  // header + gap
 
   // Determine active axis and position.
   int active_axis = -1;  // 0=horizontal, 1=vertical
@@ -1171,8 +1162,8 @@ void DrawCodeMatrix(int monitor, const GridState *gs, int x, int y, int cell_w,
 
   for (int r = 0; r < GRID_SIZE; r++) {
     for (int c = 0; c < GRID_SIZE; c++) {
-      int cx = x + PANEL_MARGIN + c * cell_w;
-      int cy = y + r * cell_h;
+      int cx = x + pad + c * cell_w;
+      int cy = grid_y + r * cell_h;
 
       // Row/column highlight background.
       int in_active = 0;
@@ -1200,8 +1191,7 @@ void DrawCodeMatrix(int monitor, const GridState *gs, int x, int y, int cell_w,
           r == HACK_SEQUENCE[gs->current_step].row &&
           c == HACK_SEQUENCE[gs->current_step].col) {
         cell_color = COLOR_YELLOW;
-        // Draw highlight box around current cell.
-        DrawRect(monitor, cx + 1, cy + 1, cell_w - 2, cell_h - 2,
+        DrawRect(monitor, cx + 2, cy + 2, cell_w - 4, cell_h - 4,
                  COLOR_YELLOW);
       }
 
@@ -1209,48 +1199,48 @@ void DrawCodeMatrix(int monitor, const GridState *gs, int x, int y, int cell_w,
       const char *code = HEX_CODES[CODE_MATRIX[r][c]];
       int tw = TextWidth(code, 2);
       DrawStringColor(monitor, cx + (cell_w - tw) / 2,
-                      cy + to + CELL_PAD_Y, cell_color, code, 2);
+                      cy + (cell_h - th) / 2 + to, cell_color, code, 2);
     }
   }
 }
 
 void DrawSequenceSection(int monitor, const GridState *gs, int x, int y,
-                         int th, int to) {
+                         int panel_w, int panel_h, int row_h, int th,
+                         int to) {
   // Panel border.
-  int panel_w = TextWidth("SEQUENCE REQUIRED TO UPLOAD", 27) + 2 * PANEL_MARGIN;
-  int panel_h = th + PANEL_MARGIN + NUM_TARGETS * (th * 2 + 8);
   DrawRect(monitor, x, y, panel_w, panel_h, COLOR_DIM);
 
   // "SEQUENCE REQUIRED TO UPLOAD" header.
+  int pad = th;
   const char *header = "SEQUENCE REQUIRED TO UPLOAD";
   int header_len = strlen(header);
-  DrawStringColor(monitor, x + PANEL_MARGIN, y + to, COLOR_GREEN, header,
+  DrawStringColor(monitor, x + pad, y + to + th / 4, COLOR_GREEN, header,
                   header_len);
-  y += th + PANEL_MARGIN;
+  int content_y = y + th * 2;  // header + gap
 
   for (int t = 0; t < NUM_TARGETS; t++) {
     const TargetSequence *target = &TARGETS[t];
-    int ty = y + t * (th * 2 + 8);
+    int ty = content_y + t * row_h;
     enum ColorIndex color =
         gs->sequence_complete[t] ? COLOR_COMPLETE : COLOR_GREEN;
 
     // Draw hex codes of target sequence.
-    int tx = x + PANEL_MARGIN;
+    int tx = x + pad;
     for (int j = 0; j < target->length; j++) {
       const char *code = HEX_CODES[target->codes[j]];
       DrawStringColor(monitor, tx, ty + to, color, code, 2);
-      tx += TextWidth(code, 2) + 8;
+      tx += TextWidth(code, 2) + th / 2;
     }
 
-    // Draw target name (at fixed offset for alignment).
-    int name_x = x + PANEL_MARGIN + 120;
+    // Draw target name at proportional offset.
+    int name_x = x + pad + panel_w * 40 / 100;
     int name_len = strlen(target->name);
     DrawStringColor(monitor, name_x, ty + to, color, target->name, name_len);
 
     // Draw description on next line.
     int desc_len = strlen(target->desc);
-    DrawStringColor(monitor, name_x, ty + to + th, COLOR_DIM, target->desc,
-                    desc_len);
+    DrawStringColor(monitor, name_x, ty + to + th + th / 4, COLOR_DIM,
+                    target->desc, desc_len);
   }
 }
 
@@ -1260,20 +1250,58 @@ void DisplayBreachProtocol(const GridState *gs, time_t deadline,
                            int max_timeout) {
   int th = TextAscent() + TextDescent() + LINE_SPACING;
   int to = TextAscent() + LINE_SPACING / 2;
-  int cell_w = TextWidth("BD", 2) + CELL_PAD_X * 2;
-  int cell_h = th + CELL_PAD_Y * 2;
 
-  // Panel dimensions.
-  int matrix_panel_w = GRID_SIZE * cell_w + 2 * PANEL_MARGIN;
-  int matrix_panel_h = GRID_SIZE * cell_h + th + PANEL_MARGIN * 2;
-  int seq_panel_w =
-      TextWidth("SEQUENCE REQUIRED TO UPLOAD", 27) + 2 * PANEL_MARGIN;
-  int timer_h = th * 2 + TIMER_BAR_HEIGHT + PANEL_MARGIN;
+  // Scale layout to screen size — target ~65% width, ~60% height.
+  int screen_w = XDisplayWidth(display, DefaultScreen(display));
+  int screen_h = XDisplayHeight(display, DefaultScreen(display));
 
-  int total_w = matrix_panel_w + SECTION_GAP + seq_panel_w;
-  int total_h = timer_h + PANEL_MARGIN + matrix_panel_h;
-  int region_w = total_w + 2 * WINDOW_BORDER;
-  int region_h = total_h + 2 * WINDOW_BORDER;
+  int region_w = screen_w * 65 / 100;
+  int region_h = screen_h * 60 / 100;
+  if (region_w < 600) region_w = 600;
+  if (region_h < 400) region_h = 400;
+
+  int border = th * 2;  // outer margin
+  int gap = th * 2;     // gap between left/right panels
+
+  // Content area inside borders.
+  int content_w = region_w - 2 * border;
+
+  // Left panel (CODE MATRIX) gets ~55% of content width.
+  int matrix_panel_w = content_w * 55 / 100;
+  int seq_panel_w = content_w - matrix_panel_w - gap;
+
+  // Cell dimensions — fill the matrix panel width.
+  int panel_pad = th;  // inner padding of panels
+  int cell_w = (matrix_panel_w - 2 * panel_pad) / GRID_SIZE;
+  int cell_h = th * 3;  // generous vertical spacing
+
+  // Timer section.
+  int timer_bar_h = th * 3 / 4;
+  if (timer_bar_h < 10) timer_bar_h = 10;
+  int timer_section_h = th + th / 2 + timer_bar_h;  // label + gap + bar
+
+  // Buffer slots — sized relative to cells.
+  int slot_w = cell_w * 2 / 3;
+  if (slot_w < TextWidth("BD", 2) + 20) slot_w = TextWidth("BD", 2) + 20;
+  int slot_h = th * 2;
+  int buffer_section_h = th + th / 2 + slot_h;  // header + gap + slots
+
+  // Top section uses whichever is taller.
+  int top_h = timer_section_h > buffer_section_h ? timer_section_h
+                                                 : buffer_section_h;
+
+  // Matrix panel height.
+  int matrix_header_h = th * 2;  // header line + gap below it
+  int matrix_panel_h = matrix_header_h + GRID_SIZE * cell_h + panel_pad;
+
+  // Sequence panel matches matrix panel height.
+  int seq_panel_h = matrix_panel_h;
+
+  // Ensure region_h fits all content.
+  int total_h = top_h + gap + matrix_panel_h;
+  if (total_h + 2 * border > region_h) {
+    region_h = total_h + 2 * border;
+  }
 
   // Burnin mitigation.
   if (burnin_mitigation_max_offset_change > 0) {
@@ -1306,23 +1334,27 @@ void DisplayBreachProtocol(const GridState *gs, time_t deadline,
   for (size_t i = 0; i < num_windows; ++i) {
     XClearWindow(display, windows[i]);
 
-    int bx = WINDOW_BORDER;  // base x
-    int by = WINDOW_BORDER;  // base y
+    int bx = border;
+    int by = border;
 
-    // Timer (top-left area).
-    DrawTimerSection(i, bx, by, matrix_panel_w, th, to, remaining,
-                     max_timeout);
+    // Timer (top-left, spans matrix panel width).
+    DrawTimerSection(i, bx, by, matrix_panel_w, timer_bar_h, th, to,
+                     remaining, max_timeout);
 
-    // Buffer (top-right area).
-    DrawBufferSection(i, gs, bx + matrix_panel_w + SECTION_GAP, by, th, to);
+    // Buffer (top-right).
+    DrawBufferSection(i, gs, bx + matrix_panel_w + gap, by, slot_w, slot_h,
+                      th, to);
 
-    by += timer_h + PANEL_MARGIN;
+    by += top_h + gap;
 
     // Code Matrix (left panel).
-    DrawCodeMatrix(i, gs, bx, by, cell_w, cell_h, th, to);
+    DrawCodeMatrix(i, gs, bx, by, cell_w, cell_h, matrix_panel_w,
+                   matrix_panel_h, th, to);
 
     // Sequences (right panel).
-    DrawSequenceSection(i, gs, bx + matrix_panel_w + SECTION_GAP, by, th, to);
+    int seq_row_h = (seq_panel_h - matrix_header_h) / NUM_TARGETS;
+    DrawSequenceSection(i, gs, bx + matrix_panel_w + gap, by, seq_panel_w,
+                        seq_panel_h, seq_row_h, th, to);
   }
 
   // Make the things just drawn appear on the screen as soon as possible.
