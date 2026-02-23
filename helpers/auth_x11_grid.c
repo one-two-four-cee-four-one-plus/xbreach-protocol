@@ -26,6 +26,7 @@ limitations under the License.
 #include <X11/X.h>     // for Success, None, Atom, KBBellPitch
 #include <X11/Xlib.h>  // for DefaultScreen, Screen, XFree, True
 #include <locale.h>    // for NULL, setlocale, LC_CTYPE, LC_TIME
+#include <math.h>      // for sqrtf
 #include <stdio.h>
 #include <stdlib.h>      // for free, rand, mblen, size_t, EXIT_...
 #include <string.h>      // for strlen, memcpy, memset, strcspn
@@ -97,6 +98,9 @@ enum DrawColor {
   COLOR_BACKGROUND,
   COLOR_CONTENT_BG,
   COLOR_PANEL_BG,
+  COLOR_GLOW_1,       /* Inner glow ring (brightest) */
+  COLOR_GLOW_2,       /* Middle glow ring */
+  COLOR_GLOW_3,       /* Outer glow ring (dimmest) */
   COLOR_COUNT
 };
 
@@ -128,6 +132,14 @@ int prompt_timeout;
 #define CFG_COLOR_CYBER_RED       "#ff3333"  /* Low-time warning */
 #define CFG_COLOR_CYBER_COMPLETE  "#00ffcc"  /* Completed sequences */
 #define CFG_COLOR_CONTENT_BG      "#0e0e17"  /* Background behind content region */
+
+// --- Glow Effect ---
+
+#define CFG_COLOR_GLOW_1          "#2a3520"  /* Inner glow (30% green on dark bg) */
+#define CFG_COLOR_GLOW_2          "#1a2215"  /* Middle glow (15%) */
+#define CFG_COLOR_GLOW_3          "#10160e"  /* Outer glow (7%) */
+#define CFG_GLOW_LAYERS           3          /* Number of glow rings (0 = disabled) */
+#define CFG_GLOW_SPREAD           3          /* Pixels per glow ring */
 
 // --- Common: Fonts ---
 
@@ -655,6 +667,71 @@ void DrawRect(int monitor, int x, int y, int w, int h, enum DrawColor color,
   }
 }
 
+/*! \brief Draw expanding glow rings behind a rectangle.
+ */
+void DrawRectGlow(int monitor, int x, int y, int w, int h) {
+#if CFG_GLOW_LAYERS >= 1
+  static const enum DrawColor glow_colors[] = {
+    COLOR_GLOW_1, COLOR_GLOW_2, COLOR_GLOW_3
+  };
+  int layers = CFG_GLOW_LAYERS;
+  if (layers > 3) layers = 3;
+  for (int g = layers; g >= 1; --g) {
+    int off = g * CFG_GLOW_SPREAD;
+    DrawRect(monitor, x - off, y - off,
+             w + 2 * off, h + 2 * off, glow_colors[g - 1], 1);
+  }
+#endif
+}
+
+/*! \brief Draw expanding glow rings behind a polygon.
+ *
+ * Expands each vertex outward from the polygon centroid.
+ * \param filled  If non-zero, use XFillPolygon; otherwise XDrawLines.
+ */
+void DrawPolygonGlow(int monitor, XPoint *points, int npoints, int filled) {
+#if CFG_GLOW_LAYERS >= 1
+  static const enum DrawColor glow_colors[] = {
+    COLOR_GLOW_1, COLOR_GLOW_2, COLOR_GLOW_3
+  };
+  int layers = CFG_GLOW_LAYERS;
+  if (layers > 3) layers = 3;
+  if (npoints < 3 || npoints > 16) return;
+
+  // Compute centroid.
+  float cx = 0, cy = 0;
+  for (int i = 0; i < npoints; ++i) {
+    cx += points[i].x;
+    cy += points[i].y;
+  }
+  cx /= npoints;
+  cy /= npoints;
+
+  XPoint glow_pts[16];
+  for (int g = layers; g >= 1; --g) {
+    float off = (float)(g * CFG_GLOW_SPREAD);
+    for (int i = 0; i < npoints; ++i) {
+      float dx = points[i].x - cx;
+      float dy = points[i].y - cy;
+      float len = sqrtf(dx * dx + dy * dy);
+      if (len > 0.001f) {
+        glow_pts[i].x = points[i].x + (short)(dx / len * off);
+        glow_pts[i].y = points[i].y + (short)(dy / len * off);
+      } else {
+        glow_pts[i] = points[i];
+      }
+    }
+    if (filled) {
+      XFillPolygon(display, backbuf[monitor], gcs_all[glow_colors[g - 1]][monitor],
+                   glow_pts, npoints, Convex, CoordModeOrigin);
+    } else {
+      XDrawLines(display, backbuf[monitor], gcs_all[glow_colors[g - 1]][monitor],
+                 glow_pts, npoints, CoordModeOrigin);
+    }
+  }
+#endif
+}
+
 /*! \brief Draw a dashed rectangle outline with a specific color.
  */
 void DrawRectDashed(int monitor, int x, int y, int w, int h,
@@ -939,6 +1016,7 @@ void DrawCodeMatrix(int monitor, int ox, int oy, int cell_w, int cell_h,
 
   // Draw grid outline.
   if (CFG_GRID_OUTLINE_THICKNESS > 0) {
+    DrawRectGlow(monitor, ox, oy, outline_w, outline_h);
     DrawRect(monitor, ox, oy, outline_w, outline_h,
              CFG_GRID_OUTLINE_COLOR, CFG_GRID_OUTLINE_THICKNESS);
     // Pentagon sitting on top of grid outline (adjust points as needed).
@@ -949,6 +1027,7 @@ void DrawCodeMatrix(int monitor, int ox, int oy, int cell_w, int cell_h,
       { ox,                  oy                  },  // bottom-left  (= top-left of outline)
       { ox,                  oy - outline_h / 20  },  // upper-left
     };
+    DrawPolygonGlow(monitor, pentagon, 5, 1);
     XFillPolygon(display, backbuf[monitor], gcs_all[CFG_GRID_OUTLINE_COLOR][monitor],
                  pentagon, 5, Convex, CoordModeOrigin);
   }
@@ -1053,6 +1132,7 @@ void DrawTimerText(int monitor, int ox, int oy, int box_w, int box_h,
            display_csec / 100, display_csec % 100);
   enum DrawColor timer_color =
       (csec_remaining < CFG_TIMER_RED_THRESHOLD) ? CFG_TIMER_LOW_FG : CFG_TIMER_FG;
+  DrawRectGlow(monitor, ox, oy, box_w, box_h);
   DrawBox(monitor, ox, oy, box_w, box_h, NO_COLOR, CFG_TIMER_OUTLINE,
           timebuf, 5, timer_color, CFG_TIMER_PAD_H);
 }
@@ -1063,6 +1143,7 @@ void DrawTimerText(int monitor, int ox, int oy, int box_w, int box_h,
  */
 void DrawProgressBar(int monitor, int ox, int oy, int bar_w, int bar_h,
                      int csec_remaining, int csec_total) {
+  DrawRectGlow(monitor, ox, oy, bar_w, bar_h);
   DrawBox(monitor, ox, oy, bar_w, bar_h, NO_COLOR, CFG_PROGRESS_OUTLINE,
           NULL, 0, NO_COLOR, 0);
   int fill_w = 0;
@@ -1176,6 +1257,7 @@ void DisplayBreachProtocolFull(const GridState *gs, int csec_remaining,
 
     // Draw panel outline.
 #if CFG_SHOW_PANEL
+    DrawRectGlow(i, px, py, CFG_PANEL_W, CFG_PANEL_H);
     DrawRect(i, px, py,
              CFG_PANEL_W, CFG_PANEL_H, COLOR_PANEL_BG, CFG_OUTLINE_THICKNESS);
 #endif
@@ -1185,6 +1267,7 @@ void DisplayBreachProtocolFull(const GridState *gs, int csec_remaining,
     if (CFG_RIGHT_PANEL_OUTLINE_THICKNESS > 0) {
       int rpx = cx + L.rpanel_x;
       int rpy = cy + L.rpanel_y;
+      DrawRectGlow(i, rpx, rpy, L.rpanel_w, L.rpanel_h);
       DrawRect(i, rpx, rpy,
                L.rpanel_w, L.rpanel_h,
                CFG_RIGHT_PANEL_OUTLINE_COLOR, CFG_RIGHT_PANEL_OUTLINE_THICKNESS);
@@ -1197,6 +1280,7 @@ void DisplayBreachProtocolFull(const GridState *gs, int csec_remaining,
         { rpx,                    rpy - L.rpanel_h / 10 },
         { rpx + L.rpanel_w / 30,  rpy - L.rpanel_h / 5 },
       };
+      DrawPolygonGlow(i, rp_pent, 6, 0);
       XDrawLines(display, backbuf[i],
                  gcs_all[COLOR_CYBER_DIM][i],
                  rp_pent, 6, CoordModeOrigin);
@@ -1714,6 +1798,13 @@ int main(int argc_local, char **argv_local) {
 
   XAllocNamedColor(display, colormap, CFG_COLOR_PANEL_BG,
                    &xcolors[COLOR_PANEL_BG], &dummy);
+
+  XAllocNamedColor(display, colormap, CFG_COLOR_GLOW_1,
+                   &xcolors[COLOR_GLOW_1], &dummy);
+  XAllocNamedColor(display, colormap, CFG_COLOR_GLOW_2,
+                   &xcolors[COLOR_GLOW_2], &dummy);
+  XAllocNamedColor(display, colormap, CFG_COLOR_GLOW_3,
+                   &xcolors[COLOR_GLOW_3], &dummy);
 
   core_font = NULL;
 #ifdef HAVE_XFT_EXT
