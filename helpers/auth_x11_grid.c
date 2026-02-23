@@ -136,7 +136,6 @@ int prompt_timeout;
 
 // --- Common: Layout ---
 
-#define SECTION_AUTO              (-1)   /* Position sentinel: auto-center */
 #define CFG_LINE_SPACING          4      /* Extra vertical space between text lines */
 #define CFG_OUTLINE_THICKNESS     1      /* Default rectangle outline width in pixels */
 #define CFG_REGION_W              2160   /* Content region width (0 = auto from layout) */
@@ -166,24 +165,23 @@ int prompt_timeout;
 // --- Panel (outer border) ---
 
 #define CFG_PANEL_X               100
-#define CFG_PANEL_Y               150
+#define CFG_PANEL_Y               100
 #define CFG_PANEL_W               (2160 - 200)
-#define CFG_PANEL_H               (1350 - 300)
+#define CFG_PANEL_H               (1350 - 200)
 #define CFG_COLOR_PANEL_BG        "#dbfd4f"  /* Panel outline color */
-#define CFG_PANEL_GAP             0      /* Gap between matrix and right panel (auto: cell_w) */
 
-// --- Code Matrix (5x5 grid) ---
+// --- Code Matrix (5x5 grid, relative to panel top-left) ---
 
-#define CFG_MATRIX_X              300    /* Position (-1 = auto) */
-#define CFG_MATRIX_Y              600
-#define CFG_GRID_CELL_W           100    /* Cell width (0 = auto) */
+#define CFG_MATRIX_X              100    /* Section origin X (panel-relative) */
+#define CFG_MATRIX_Y              320    /* Section origin Y (panel-relative) */
+#define CFG_GRID_CELL_W           120    /* Cell width (0 = auto) */
 #define CFG_GRID_CELL_H           100    /* Cell height (0 = auto) */
 #define CFG_GRID_PAD_H            16     /* Added to text width for auto cell_w */
 #define CFG_GRID_PAD_V            4      /* Added to text height for auto cell_h */
 #define CFG_GRID_OUTLINE_THICKNESS 2     /* 0 = no grid outline */
 #define CFG_GRID_OUTLINE_COLOR    COLOR_CYBER_GREEN
-#define CFG_GRID_OUTLINE_PAD_LEFT  100
-#define CFG_GRID_OUTLINE_PAD_RIGHT 100
+#define CFG_GRID_OUTLINE_PAD_LEFT  40
+#define CFG_GRID_OUTLINE_PAD_RIGHT 40
 #define CFG_GRID_OUTLINE_PAD_TOP   0
 #define CFG_GRID_OUTLINE_PAD_BOTTOM 0
 #define CFG_GRID_CELL_FG          COLOR_CYBER_GREEN    /* Normal cell text */
@@ -194,11 +192,11 @@ int prompt_timeout;
 #define CFG_GRID_HIGHLIGHT_BG     COLOR_CYBER_HIGHLIGHT /* Active row/column bg */
 #define CFG_TEXT_CODE_MATRIX       "CODE MATRIX"
 
-// --- Buffer (slot boxes) ---
+// --- Buffer (slot boxes, relative to panel top-left) ---
 
-#define CFG_BUFFER_X              1100   /* Position (-1 = auto) */
-#define CFG_BUFFER_Y              440
-#define CFG_BUF_CELL_W            60     /* Slot width (0 = auto) */
+#define CFG_BUFFER_X              1000   /* Section origin X (panel-relative) */
+#define CFG_BUFFER_Y              100    /* Section origin Y (panel-relative) */
+#define CFG_BUF_CELL_W            70     /* Slot width (0 = auto) */
 #define CFG_BUF_CELL_H            60     /* Slot height (0 = auto) */
 #define CFG_BUF_PAD_H             0     /* Added to text width for auto slot_w */
 #define CFG_BUF_PAD_V             4      /* Added to text height for auto slot_h */
@@ -214,10 +212,12 @@ int prompt_timeout;
 #define CFG_TEXT_BUFFER            "BUFFER"
 #define CFG_TEXT_EMPTY_SLOT        "__"
 
-// --- Timer ---
+// --- Timer (relative to panel top-left) ---
 
-#define CFG_TIMER_X               918    /* Position (-1 = auto) */
-#define CFG_TIMER_Y               470
+#define CFG_TIMER_X               100    /* Section origin X (panel-relative) */
+#define CFG_TIMER_Y               110    /* Section origin Y (panel-relative) */
+#define CFG_TIMER_BOX_GAP         20     /* Gap: header text → timer box */
+#define CFG_TIMER_BAR_GAP         42     /* Gap: header bottom → progress bar top */
 #define CFG_TIMER_W               0      /* Timer box width (0 = auto from text) */
 #define CFG_TIMER_H               0      /* Timer box height (0 = auto from font) */
 #define CFG_TIMER_PAD_H           16     /* Horizontal padding inside timer outline */
@@ -230,22 +230,20 @@ int prompt_timeout;
 #define CFG_TIMER_OUTLINE         COLOR_CYBER_DIM      /* Timer outline */
 #define CFG_TEXT_TIMER_HEADER      "BREACH TIME REMAINING"
 
-// --- Progress Bar ---
+// --- Progress Bar (child of timer section) ---
 
-#define CFG_BAR_X                 300    /* Position (-1 = auto) */
-#define CFG_BAR_Y                 500
-#define CFG_BAR_W                 700    /* Bar width (0 = auto: right panel width) */
-#define CFG_BAR_H                 16      /* Bar height (auto: th/2, min 8) */
+#define CFG_BAR_W                 650    /* Bar width (0 = auto: right panel width) */
+#define CFG_BAR_H                 16     /* Bar height (auto: th/2, min 8) */
 #define CFG_BAR_H_MIN             8      /* Minimum bar height when auto */
 #define CFG_PROGRESS_OUTLINE      COLOR_CYBER_DIM      /* Progress bar frame */
 #define CFG_PROGRESS_FILL         COLOR_CYBER_GREEN    /* Progress bar fill (normal) */
 #define CFG_PROGRESS_FILL_LOW     COLOR_CYBER_RED      /* Progress bar fill (low) */
 
-// --- Sequence Required ---
+// --- Sequence Required (relative to panel top-left) ---
 
-#define CFG_SEQ_X                 1100   /* Position (-1 = auto) */
-#define CFG_SEQ_Y                 630
-#define CFG_SEQ_CELL_W            60     /* Hex box width (0 = auto from font) */
+#define CFG_SEQ_X                 1000   /* Section origin X (panel-relative) */
+#define CFG_SEQ_Y                 350    /* Section origin Y (panel-relative) */
+#define CFG_SEQ_CELL_W            70     /* Hex box width (0 = auto from font) */
 #define CFG_SEQ_CELL_H            60     /* Hex box height (0 = auto from font) */
 #define CFG_SEQ_PAD_H             16     /* Added to text width for auto seq cell_w */
 #define CFG_SEQ_PAD_V             4      /* Added to text height for auto seq cell_h */
@@ -829,163 +827,79 @@ void GridRewindStep(GridState *gs) {
  *  =========================================================== */
 
 typedef struct {
-  int grid_cw, grid_ch;       /* Grid cell dimensions */
-  int buf_cw, buf_ch;         /* Buffer slot dimensions */
-  int seq_cw, seq_ch;         /* Sequence hex box dimensions */
-  int th, to, bar_h, bar_w, timer_w, timer_h;
-  int matrix_w, gap, right_w, buffer_h;
-  int region_w, region_h;
-  int buffer_x, buffer_y;   /* Buffer section origin */
-  int matrix_x, matrix_y;   /* Code matrix section origin */
-  int timer_x, timer_y;     /* Timer text origin */
-  int bar_x, bar_y;         /* Progress bar origin */
-  int seq_x, seq_y;         /* Sequence section origin */
-  int rpanel_x, rpanel_y, rpanel_w, rpanel_h;  /* Right panel outline bounds */
+  int th, to;                 /* Font metrics */
+  int grid_cw, grid_ch;      /* Grid cell dimensions */
+  int buf_cw, buf_ch;        /* Buffer slot dimensions */
+  int seq_cw, seq_ch;        /* Sequence hex box dimensions */
+  int timer_w, timer_h;      /* Timer box dimensions */
+  int bar_w, bar_h;          /* Progress bar dimensions */
+  int region_w, region_h;    /* Overall region size */
+  int rpanel_x, rpanel_y;    /* Right panel outline (region-relative) */
+  int rpanel_w, rpanel_h;
 } LayoutInfo;
 
 void ComputeLayout(LayoutInfo *L) {
-  // 1. Compute font metrics (always from font).
+  // 1. Font metrics.
   L->th = TextAscent() + TextDescent() + CFG_LINE_SPACING;
   L->to = TextAscent() + CFG_LINE_SPACING / 2;
 
-  // 2. Compute sizes with auto-override logic.
+  // 2. Cell/box sizes (0 = auto from font).
   int hex_tw = TextWidth("BD", 2);
 
-  if (CFG_GRID_CELL_W > 0) {
-    L->grid_cw = CFG_GRID_CELL_W;
-  } else {
-    L->grid_cw = hex_tw + CFG_GRID_PAD_H;
-  }
+  L->grid_cw = (CFG_GRID_CELL_W > 0) ? CFG_GRID_CELL_W : hex_tw + CFG_GRID_PAD_H;
+  L->grid_ch = (CFG_GRID_CELL_H > 0) ? CFG_GRID_CELL_H : L->th + CFG_GRID_PAD_V;
+  L->buf_cw  = (CFG_BUF_CELL_W > 0)  ? CFG_BUF_CELL_W  : hex_tw + CFG_BUF_PAD_H;
+  L->buf_ch  = (CFG_BUF_CELL_H > 0)  ? CFG_BUF_CELL_H  : L->th + CFG_BUF_PAD_V;
+  L->seq_cw  = (CFG_SEQ_CELL_W > 0)  ? CFG_SEQ_CELL_W  : hex_tw + CFG_SEQ_PAD_H;
+  L->seq_ch  = (CFG_SEQ_CELL_H > 0)  ? CFG_SEQ_CELL_H  : L->th + CFG_SEQ_PAD_V;
 
-  if (CFG_GRID_CELL_H > 0) {
-    L->grid_ch = CFG_GRID_CELL_H;
-  } else {
-    L->grid_ch = L->th + CFG_GRID_PAD_V;
-  }
-
-  if (CFG_BUF_CELL_W > 0) {
-    L->buf_cw = CFG_BUF_CELL_W;
-  } else {
-    L->buf_cw = hex_tw + CFG_BUF_PAD_H;
-  }
-
-  if (CFG_BUF_CELL_H > 0) {
-    L->buf_ch = CFG_BUF_CELL_H;
-  } else {
-    L->buf_ch = L->th + CFG_BUF_PAD_V;
-  }
-
-  if (CFG_SEQ_CELL_W > 0) {
-    L->seq_cw = CFG_SEQ_CELL_W;
-  } else {
-    L->seq_cw = hex_tw + CFG_SEQ_PAD_H;
-  }
-
-  if (CFG_SEQ_CELL_H > 0) {
-    L->seq_ch = CFG_SEQ_CELL_H;
-  } else {
-    L->seq_ch = L->th + CFG_SEQ_PAD_V;
-  }
-
-  if (CFG_BAR_H > 0) {
-    L->bar_h = CFG_BAR_H;
-  } else {
-    L->bar_h = L->th / 2;
-    if (L->bar_h < CFG_BAR_H_MIN) L->bar_h = CFG_BAR_H_MIN;
-  }
-
-  if (CFG_PANEL_GAP > 0) {
-    L->gap = CFG_PANEL_GAP;
-  } else {
-    L->gap = L->grid_cw;
-  }
-
-  if (CFG_RIGHT_PANEL_W > 0) {
-    L->right_w = CFG_RIGHT_PANEL_W;
-  } else {
-    int widest = TextWidth(CFG_TEXT_SEQ_HEADER, strlen(CFG_TEXT_SEQ_HEADER));
-    int buf_slots_w = BUFFER_SIZE * (L->buf_cw + CFG_SLOT_GAP);
-    if (buf_slots_w > widest) widest = buf_slots_w;
-    L->right_w = widest + CFG_RIGHT_PANEL_PAD;
-  }
+  // 3. Bar dimensions.
+  L->bar_h = (CFG_BAR_H > 0) ? CFG_BAR_H : L->th / 2;
+  if (L->bar_h < CFG_BAR_H_MIN) L->bar_h = CFG_BAR_H_MIN;
 
   if (CFG_BAR_W > 0) {
     L->bar_w = CFG_BAR_W;
   } else {
-    L->bar_w = L->right_w;
+    int right_w;
+    if (CFG_RIGHT_PANEL_W > 0) {
+      right_w = CFG_RIGHT_PANEL_W;
+    } else {
+      int widest = TextWidth(CFG_TEXT_SEQ_HEADER, strlen(CFG_TEXT_SEQ_HEADER));
+      int buf_slots_w = BUFFER_SIZE * (L->buf_cw + CFG_SLOT_GAP);
+      if (buf_slots_w > widest) widest = buf_slots_w;
+      right_w = widest + CFG_RIGHT_PANEL_PAD;
+    }
+    L->bar_w = right_w;
   }
 
-  // Timer box dimensions.
-  if (CFG_TIMER_W > 0) {
-    L->timer_w = CFG_TIMER_W;
-  } else {
-    // "99.99" is always 5 chars in the fixed format.
-    L->timer_w = TextWidth("99.99", 5) + CFG_TIMER_PAD_H * 2;
-  }
+  // 4. Timer box dimensions.
+  L->timer_w = (CFG_TIMER_W > 0) ? CFG_TIMER_W
+             : TextWidth("99.99", 5) + CFG_TIMER_PAD_H * 2;
+  L->timer_h = (CFG_TIMER_H > 0) ? CFG_TIMER_H : L->th;
 
-  if (CFG_TIMER_H > 0) {
-    L->timer_h = CFG_TIMER_H;
-  } else {
-    L->timer_h = L->th;
-  }
+  // 5. Region size.
+  L->region_w = CFG_REGION_W;
+  L->region_h = CFG_REGION_H;
 
-  int grid_inset_x = CFG_GRID_OUTLINE_THICKNESS + CFG_GRID_OUTLINE_PAD_LEFT
-                   + CFG_GRID_OUTLINE_THICKNESS + CFG_GRID_OUTLINE_PAD_RIGHT;
-  int grid_inset_y = CFG_GRID_OUTLINE_THICKNESS + CFG_GRID_OUTLINE_PAD_TOP
-                   + CFG_GRID_OUTLINE_THICKNESS + CFG_GRID_OUTLINE_PAD_BOTTOM;
-  L->matrix_w = grid_inset_x + GRID_SIZE * L->grid_cw;
-  L->buffer_h = L->th * 2 + L->buf_ch;
-
-  // 3. Compute auto positions (centered layout).
-  int matrix_h = L->th + grid_inset_y + GRID_SIZE * L->grid_ch;
-  int timer_h = L->th;
-  int seq_h = L->th + CFG_LINE_SPACING + NUM_TARGETS * (L->seq_ch + CFG_LINE_SPACING);
-
-  int right_panel_h = timer_h + L->bar_h + seq_h;
-  int left_panel_h = L->buffer_h + matrix_h;
-  int total_h = (left_panel_h > right_panel_h) ? left_panel_h : right_panel_h;
-  int total_w = L->matrix_w + L->gap + L->right_w;
-
-  // Centered auto positions within the logical region.
-  int auto_buffer_x = 0;
-  int auto_buffer_y = 0;
-  int auto_matrix_x = 0;
-  int auto_matrix_y = L->buffer_h;
-  int auto_timer_x = L->matrix_w + L->gap;
-  int auto_timer_y = 0;
-  int auto_bar_x = auto_timer_x;
-  int auto_bar_y = auto_timer_y + timer_h;
-  int auto_seq_x = L->matrix_w + L->gap;
-  int auto_seq_y = timer_h + L->bar_h;
-
-  // 4. Apply overrides from CFG_* constants.
-  L->buffer_x = (CFG_BUFFER_X != SECTION_AUTO) ? CFG_BUFFER_X : auto_buffer_x;
-  L->buffer_y = (CFG_BUFFER_Y != SECTION_AUTO) ? CFG_BUFFER_Y : auto_buffer_y;
-  L->matrix_x = (CFG_MATRIX_X != SECTION_AUTO) ? CFG_MATRIX_X : auto_matrix_x;
-  L->matrix_y = (CFG_MATRIX_Y != SECTION_AUTO) ? CFG_MATRIX_Y : auto_matrix_y;
-  L->timer_x = (CFG_TIMER_X != SECTION_AUTO) ? CFG_TIMER_X : auto_timer_x;
-  L->timer_y = (CFG_TIMER_Y != SECTION_AUTO) ? CFG_TIMER_Y : auto_timer_y;
-  L->bar_x = (CFG_BAR_X != SECTION_AUTO) ? CFG_BAR_X : auto_bar_x;
-  L->bar_y = (CFG_BAR_Y != SECTION_AUTO) ? CFG_BAR_Y : auto_bar_y;
-  L->seq_x = (CFG_SEQ_X != SECTION_AUTO) ? CFG_SEQ_X : auto_seq_x;
-  L->seq_y = (CFG_SEQ_Y != SECTION_AUTO) ? CFG_SEQ_Y : auto_seq_y;
-
-  // 5. Compute final region_w, region_h as bounding box.
-  L->region_w = (CFG_REGION_W > 0) ? CFG_REGION_W : total_w;
-  L->region_h = (CFG_REGION_H > 0) ? CFG_REGION_H : total_h;
-
-  // 6. Compute right panel outline bounds.
+  // 6. Right panel outline bounds (region-relative, around seq content).
   int rp_pad = CFG_RIGHT_PANEL_OUTLINE_PAD;
-  // Top-left: sequence section origin, minus padding.
-  int rp_top_x = L->seq_x;
-  int rp_top_y = L->seq_y;
-  // Bottom: sequence section bottom edge.
-  int rp_bot_y = L->seq_y + NUM_TARGETS * (L->seq_ch + CFG_LINE_SPACING);
-  // Right edge: use right_w from the leftmost right-panel x.
-  L->rpanel_x = rp_top_x - rp_pad;
-  L->rpanel_y = rp_top_y - rp_pad;
-  L->rpanel_w = L->right_w + 2 * rp_pad;
-  L->rpanel_h = (rp_bot_y - rp_top_y) + 2 * rp_pad;
+  int abs_seq_x = CFG_PANEL_X + CFG_SEQ_X;
+  int abs_seq_content_y = CFG_PANEL_Y + CFG_SEQ_Y + L->th;
+
+  int rpanel_right_w;
+  if (CFG_RIGHT_PANEL_W > 0) {
+    rpanel_right_w = CFG_RIGHT_PANEL_W;
+  } else {
+    int widest = TextWidth(CFG_TEXT_SEQ_HEADER, strlen(CFG_TEXT_SEQ_HEADER));
+    int buf_slots_w = BUFFER_SIZE * (L->buf_cw + CFG_SLOT_GAP);
+    if (buf_slots_w > widest) widest = buf_slots_w;
+    rpanel_right_w = widest + CFG_RIGHT_PANEL_PAD;
+  }
+
+  L->rpanel_x = abs_seq_x - rp_pad;
+  L->rpanel_y = abs_seq_content_y - rp_pad;
+  L->rpanel_w = rpanel_right_w + 2 * rp_pad;
+  L->rpanel_h = NUM_TARGETS * (L->seq_ch + CFG_LINE_SPACING) + 2 * rp_pad;
 }
 
 /*! \brief Compute centiseconds remaining from deadline to now.
@@ -1256,9 +1170,13 @@ void DisplayBreachProtocolFull(const GridState *gs, int csec_remaining,
     int cx = (backbuf_w[i] - L.region_w) / 2 + content_x_offset;
     int cy = (backbuf_h[i] - L.region_h) / 2 + content_y_offset;
 
+    // Panel origin (all sections are relative to this).
+    int px = cx + CFG_PANEL_X;
+    int py = cy + CFG_PANEL_Y;
+
     // Draw panel outline.
 #if CFG_SHOW_PANEL
-    DrawRect(i, cx + CFG_PANEL_X, cy + CFG_PANEL_Y,
+    DrawRect(i, px, py,
              CFG_PANEL_W, CFG_PANEL_H, COLOR_PANEL_BG, CFG_OUTLINE_THICKNESS);
 #endif
 
@@ -1285,20 +1203,47 @@ void DisplayBreachProtocolFull(const GridState *gs, int csec_remaining,
     }
 #endif
 
-    // Draw all sections to backbuffer with adjusted positions.
-    DrawBufferSection(i, cx + L.buffer_x, cy + L.buffer_y + L.th, L.buf_cw, L.buf_ch, gs);
-#if CFG_SHOW_MATRIX
-    DrawCodeMatrix(i, cx + L.matrix_x, cy + L.matrix_y + L.th, L.grid_cw, L.grid_ch, gs);
-#endif
+    // Timer section.
 #if CFG_SHOW_TIMER
-    DrawTimerText(i, cx + L.timer_x, cy + L.timer_y, L.timer_w, L.timer_h, csec_remaining);
-#endif
+    {
+      int tx = px + CFG_TIMER_X;
+      int ty = py + CFG_TIMER_Y;
+      int hdr_w = TextWidth(CFG_TEXT_TIMER_HEADER, strlen(CFG_TEXT_TIMER_HEADER));
+      DrawText(i, tx, ty + L.to, COLOR_CYBER_GREEN, CFG_TEXT_TIMER_HEADER);
+      DrawTimerText(i, tx + hdr_w + CFG_TIMER_BOX_GAP, ty,
+                    L.timer_w, L.timer_h, csec_remaining);
 #if CFG_SHOW_BAR
-    DrawProgressBar(i, cx + L.bar_x, cy + L.bar_y, L.bar_w, L.bar_h,
-                    csec_remaining, csec_total);
+      DrawProgressBar(i, tx, ty + L.th + CFG_TIMER_BAR_GAP, L.bar_w, L.bar_h,
+                      csec_remaining, csec_total);
 #endif
+    }
+#endif
+
+    // Matrix section.
+#if CFG_SHOW_MATRIX
+    {
+      int mx = px + CFG_MATRIX_X;
+      int my = py + CFG_MATRIX_Y;
+      DrawCodeMatrix(i, mx, my + L.th, L.grid_cw, L.grid_ch, gs);
+    }
+#endif
+
+    // Buffer section.
+    {
+      int bx = px + CFG_BUFFER_X;
+      int by_ = py + CFG_BUFFER_Y;
+      DrawText(i, bx, by_ + L.to, CFG_BUFFER_HEADER_FG, CFG_TEXT_BUFFER);
+      DrawBufferSection(i, bx, by_ + L.th, L.buf_cw, L.buf_ch, gs);
+    }
+
+    // Sequence section.
 #if CFG_SHOW_SEQUENCES
-    DrawSequenceSection(i, cx + L.seq_x, cy + L.seq_y, L.seq_cw, L.seq_ch, gs);
+    {
+      int sx = px + CFG_SEQ_X;
+      int sy = py + CFG_SEQ_Y;
+      DrawText(i, sx, sy + L.to, CFG_SEQ_HEADER_FG, CFG_TEXT_SEQ_HEADER);
+      DrawSequenceSection(i, sx, sy + L.th, L.seq_cw, L.seq_ch, gs);
+    }
 #endif
     // Blit backbuffer to window atomically.
     XCopyArea(display, backbuf[i], windows[i],
@@ -1322,35 +1267,42 @@ void RedrawTimerOnly(int csec_remaining, int csec_total) {
     int cx = (backbuf_w[i] - L.region_w) / 2;
     int cy = (backbuf_h[i] - L.region_h) / 2;
 
-#if CFG_SHOW_TIMER
-    int timer_x = cx + L.timer_x;
-    int timer_y = cy + L.timer_y;
-#endif
-#if CFG_SHOW_BAR
-    int bar_x = cx + L.bar_x;
-    int bar_y = cy + L.bar_y;
-#endif
+    // Derive timer section from panel origin.
+    int px = cx + CFG_PANEL_X;
+    int py = cy + CFG_PANEL_Y;
+    int tx = px + CFG_TIMER_X;
+    int ty = py + CFG_TIMER_Y;
 
 #if CFG_SHOW_TIMER
-    // Clear and redraw timer text (use timer_w, not bar_w, to avoid
-    // wiping other elements that share the same x range).
-    FillRect(i, timer_x, timer_y, L.timer_w, L.timer_h, COLOR_CONTENT_BG);
-    DrawTimerText(i, timer_x, timer_y, L.timer_w, L.timer_h, csec_remaining);
-    XCopyArea(display, backbuf[i], windows[i],
-              gcs_all[COLOR_FOREGROUND][i],
-              timer_x, timer_y, L.timer_w, L.timer_h,
-              timer_x, timer_y);
+    {
+      // Timer box position.
+      int hdr_w = TextWidth(CFG_TEXT_TIMER_HEADER, strlen(CFG_TEXT_TIMER_HEADER));
+      int timer_x = tx + hdr_w + CFG_TIMER_BOX_GAP;
+      int timer_y = ty;
+      // Clear and redraw timer text.
+      FillRect(i, timer_x, timer_y, L.timer_w, L.timer_h, COLOR_CONTENT_BG);
+      DrawTimerText(i, timer_x, timer_y, L.timer_w, L.timer_h, csec_remaining);
+      XCopyArea(display, backbuf[i], windows[i],
+                gcs_all[COLOR_FOREGROUND][i],
+                timer_x, timer_y, L.timer_w, L.timer_h,
+                timer_x, timer_y);
+    }
 #endif
 
 #if CFG_SHOW_BAR
-    // Clear and redraw progress bar.
-    FillRect(i, bar_x, bar_y, L.bar_w, L.bar_h, COLOR_CONTENT_BG);
-    DrawProgressBar(i, bar_x, bar_y, L.bar_w, L.bar_h,
-                    csec_remaining, csec_total);
-    XCopyArea(display, backbuf[i], windows[i],
-              gcs_all[COLOR_FOREGROUND][i],
-              bar_x, bar_y, L.bar_w, L.bar_h,
-              bar_x, bar_y);
+    {
+      // Progress bar position.
+      int bar_x = tx;
+      int bar_y = ty + L.th + CFG_TIMER_BAR_GAP;
+      // Clear and redraw progress bar.
+      FillRect(i, bar_x, bar_y, L.bar_w, L.bar_h, COLOR_CONTENT_BG);
+      DrawProgressBar(i, bar_x, bar_y, L.bar_w, L.bar_h,
+                      csec_remaining, csec_total);
+      XCopyArea(display, backbuf[i], windows[i],
+                gcs_all[COLOR_FOREGROUND][i],
+                bar_x, bar_y, L.bar_w, L.bar_h,
+                bar_x, bar_y);
+    }
 #endif
   }
 
