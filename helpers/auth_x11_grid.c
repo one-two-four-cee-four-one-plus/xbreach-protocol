@@ -186,7 +186,7 @@ int prompt_timeout;
 
 #define CFG_MATRIX_X              100    /* Section origin X (panel-relative) */
 #define CFG_MATRIX_Y              320    /* Section origin Y (panel-relative) */
-#define CFG_GRID_CELL_W           120    /* Cell width (0 = auto) */
+#define CFG_GRID_CELL_W           100    /* Cell width (0 = auto) */
 #define CFG_GRID_CELL_H           100    /* Cell height (0 = auto) */
 #define CFG_GRID_PAD_H            16     /* Added to text width for auto cell_w */
 #define CFG_GRID_PAD_V            4      /* Added to text height for auto cell_h */
@@ -197,9 +197,9 @@ int prompt_timeout;
 #define CFG_GRID_OUTLINE_PAD_TOP   0
 #define CFG_GRID_OUTLINE_PAD_BOTTOM 0
 #define CFG_GRID_CELL_FG          COLOR_CYBER_GREEN    /* Normal cell text */
-#define CFG_GRID_CELL_USED_FG     COLOR_CONTENT_BG      /* Used cell text */
+#define CFG_GRID_CELL_USED_FG     COLOR_CYBER_YELLOW      /* Used cell text */
 #define CFG_GRID_CELL_USED_OUTLINE COLOR_CONTENT_BG     /* Used cell outline */
-#define CFG_GRID_CELL_ACTIVE_FG   COLOR_FOREGROUND     /* Current cell text */
+#define CFG_GRID_CELL_ACTIVE_FG   COLOR_BACKGROUND     /* Current cell text */
 #define CFG_GRID_CELL_ACTIVE_BG   COLOR_CYBER_YELLOW   /* Current cell background */
 #define CFG_GRID_HIGHLIGHT_BG     COLOR_CYBER_HIGHLIGHT /* Active row/column bg */
 #define CFG_TEXT_CODE_MATRIX       "CODE MATRIX"
@@ -268,6 +268,8 @@ int prompt_timeout;
 #define CFG_SEQ_HEX_COMPLETE_FG  COLOR_CYBER_COMPLETE /* Target hex (complete) */
 #define CFG_SEQ_HEX_OUTLINE      COLOR_CYBER_DIM      /* Hex code box outline */
 #define CFG_SEQ_HEX_OUTLINE_COMPLETE COLOR_CYBER_COMPLETE /* Hex box outline (complete) */
+#define CFG_SEQ_COMPLETE_BG       COLOR_CYBER_HIGHLIGHT /* Background fill for completed row */
+#define CFG_SEQ_COMPLETE_TEXTS    "INSTALLED,INSTALLED,INSTALLED" /* Comma-separated, one per target */
 #define CFG_TEXT_SEQ_HEADER        "SEQUENCE REQUIRED TO UPLOAD"
 
 // --- Right Panel (outline around sequence section) ---
@@ -990,6 +992,29 @@ static int ComputeCentisecondsRemaining(const struct timeval *deadline,
   return csec;
 }
 
+/*! \brief Draw animated text cycling through a list of strings.
+ *
+ * Picks which string to display based on wall-clock time.
+ *
+ * \param monitor  Window index.
+ * \param x        X position (left edge of text).
+ * \param y        Y position (text baseline).
+ * \param color    Text color.
+ * \param strings  Array of string pointers.
+ * \param count    Number of strings in the array.
+ * \param duration Seconds each string is shown before advancing.
+ */
+void DrawAnimatedText(int monitor, int x, int y, enum DrawColor color,
+                      const char *const *strings, int count, float duration) {
+  if (count <= 0) return;
+  struct timeval now;
+  gettimeofday(&now, NULL);
+  double t = (double)now.tv_sec + (double)now.tv_usec / 1000000.0;
+  int idx = (int)(t / (double)duration) % count;
+  if (idx < 0) idx += count;
+  DrawText(monitor, x, y, color, strings[idx]);
+}
+
 /*! ===========================================================
  *  DRAWING FUNCTIONS
  *  =========================================================== */
@@ -1030,6 +1055,14 @@ void DrawCodeMatrix(int monitor, int ox, int oy, int cell_w, int cell_h,
     DrawPolygonGlow(monitor, pentagon, 5, 1);
     XFillPolygon(display, backbuf[monitor], gcs_all[CFG_GRID_OUTLINE_COLOR][monitor],
                  pentagon, 5, Convex, CoordModeOrigin);
+    // "CODE MATRIX" label inside pentagon, left-aligned.
+    {
+      int pent_top = oy - outline_h / 10;
+      int pent_bot = oy;
+      int text_y = (pent_top + pent_bot + TextAscent() - TextDescent()) / 2;
+      int text_x = ox + outline_w / 30 + 8;
+      DrawText(monitor, text_x, text_y, COLOR_BACKGROUND, CFG_TEXT_CODE_MATRIX);
+    }
   }
 
   // Cell origin (inset from outline).
@@ -1041,12 +1074,16 @@ void DrawCodeMatrix(int monitor, int ox, int oy, int cell_w, int cell_h,
   int inner_h = outline_h - 2 * CFG_GRID_OUTLINE_THICKNESS;
 
   // Draw full-width row / full-height column highlights (spans padding).
-  if (gs->current_axis == AXIS_HORIZONTAL) {
-    int ry = gy + gs->active_row * cell_h;
-    FillRect(monitor, inner_x, ry, inner_w, cell_h, CFG_GRID_HIGHLIGHT_BG);
-  } else {
-    int colx = gx + gs->active_col * cell_w;
-    FillRect(monitor, colx, inner_y, cell_w, inner_h, CFG_GRID_HIGHLIGHT_BG);
+  // Skip highlight when no input has been entered yet.
+  int started = gs->buffer_count > 0 || gs->current_step > 0;
+  if (started) {
+    if (gs->current_axis == AXIS_HORIZONTAL) {
+      int ry = gy + gs->active_row * cell_h;
+      FillRect(monitor, inner_x, ry, inner_w, cell_h, CFG_GRID_HIGHLIGHT_BG);
+    } else {
+      int colx = gx + gs->active_col * cell_w;
+      FillRect(monitor, colx, inner_y, cell_w, inner_h, CFG_GRID_HIGHLIGHT_BG);
+    }
   }
 
   for (int row = 0; row < GRID_SIZE; ++row) {
@@ -1054,7 +1091,8 @@ void DrawCodeMatrix(int monitor, int ox, int oy, int cell_w, int cell_h,
       int cx = gx + col * cell_w;
       int cy = gy + row * cell_h;
 
-      int is_current = (gs->current_step < BUFFER_SIZE &&
+      int is_current = (started &&
+                        gs->current_step < BUFFER_SIZE &&
                         row == HACK_SEQUENCE[gs->current_step].row &&
                         col == HACK_SEQUENCE[gs->current_step].col);
       int used = IsCellUsed(gs, row, col);
@@ -1065,7 +1103,7 @@ void DrawCodeMatrix(int monitor, int ox, int oy, int cell_w, int cell_h,
                                   : is_current ? CFG_GRID_CELL_ACTIVE_FG
                                   : CFG_GRID_CELL_FG;
 
-      const char *hex = HEX_CODES[CODE_MATRIX[row][col]];
+      const char *hex = used ? "[  ]" : HEX_CODES[CODE_MATRIX[row][col]];
       int hxlen = strlen(hex);
       DrawBox(monitor, cx, cy, cell_w, cell_h, bg, ol, hex, hxlen,
               text_color, 0);
@@ -1176,22 +1214,65 @@ void DrawSequenceSection(int monitor, int ox, int oy, int cell_w, int cell_h,
   }
   int name_x = ox + max_len * (cell_w + CFG_SEQ_HEX_GAP)
                - CFG_SEQ_HEX_GAP + CFG_SEQ_NAME_MARGIN;
+  // Total width of the hex box area (used for complete replacement box).
+  int hex_area_w = max_len * cell_w + (max_len - 1) * CFG_SEQ_HEX_GAP;
+
+  // Parse comma-separated completion texts (one per target).
+  const char *complete_texts[NUM_TARGETS];
+  int complete_text_lens[NUM_TARGETS];
+  {
+    const char *p = CFG_SEQ_COMPLETE_TEXTS;
+    for (int t = 0; t < NUM_TARGETS; ++t) {
+      complete_texts[t] = p;
+      const char *comma = strchr(p, ',');
+      if (comma && t < NUM_TARGETS - 1) {
+        complete_text_lens[t] = (int)(comma - p);
+        p = comma + 1;
+      } else {
+        complete_text_lens[t] = (int)strlen(p);
+      }
+    }
+  }
 
   for (int t = 0; t < NUM_TARGETS; ++t) {
     int complete = gs->sequence_complete[t];
 
-    // Draw outlined hex code boxes (left-aligned).
-    for (int j = 0; j < TARGETS[t].length; ++j) {
-      int sx = ox + j * (cell_w + CFG_SEQ_HEX_GAP);
-      const char *hex = HEX_CODES[TARGETS[t].codes[j]];
-      int hxlen = strlen(hex);
+    if (complete) {
+      // Replace hex boxes with a single filled box spanning the hex area.
+      DrawBox(monitor, ox, oy, hex_area_w, cell_h,
+              CFG_SEQ_COMPLETE_BG, CFG_SEQ_HEX_OUTLINE_COMPLETE,
+              complete_texts[t], complete_text_lens[t],
+              CFG_SEQ_HEX_COMPLETE_FG, 0);
+    } else {
+      // Find longest prefix of this target matching a buffer suffix.
+      int match_count = 0;
+      for (int start = 0; start < gs->buffer_count; ++start) {
+        int len = 0;
+        for (int j = 0; j < TARGETS[t].length
+                         && (start + j) < gs->buffer_count; ++j) {
+          if (gs->buffer_codes[start + j] == TARGETS[t].codes[j])
+            len++;
+          else
+            break;
+        }
+        if (start + len == gs->buffer_count && len > match_count)
+          match_count = len;
+      }
 
-      enum DrawColor code_color =
-          complete ? CFG_SEQ_HEX_COMPLETE_FG : CFG_SEQ_HEX_FG;
-      enum DrawColor outline_color =
-          complete ? CFG_SEQ_HEX_OUTLINE_COMPLETE : CFG_SEQ_HEX_OUTLINE;
-      DrawBox(monitor, sx, oy, cell_w, cell_h, NO_COLOR, outline_color,
-              hex, hxlen, code_color, 0);
+      // Draw outlined hex code boxes (left-aligned).
+      for (int j = 0; j < TARGETS[t].length; ++j) {
+        int sx = ox + j * (cell_w + CFG_SEQ_HEX_GAP);
+        const char *hex = HEX_CODES[TARGETS[t].codes[j]];
+        int hxlen = strlen(hex);
+
+        int matched = j < match_count;
+        enum DrawColor code_color =
+            matched ? CFG_SEQ_HEX_COMPLETE_FG : CFG_SEQ_HEX_FG;
+        enum DrawColor outline_color =
+            matched ? CFG_SEQ_HEX_OUTLINE_COMPLETE : NO_COLOR;
+        DrawBox(monitor, sx, oy, cell_w, cell_h, NO_COLOR, outline_color,
+                hex, hxlen, code_color, 0);
+      }
     }
 
     // Draw DATAMINE label at aligned column.
@@ -1325,7 +1406,7 @@ void DisplayBreachProtocolFull(const GridState *gs, int csec_remaining,
     {
       int sx = px + CFG_SEQ_X;
       int sy = py + CFG_SEQ_Y;
-      DrawText(i, sx, sy + L.to, CFG_SEQ_HEADER_FG, CFG_TEXT_SEQ_HEADER);
+      DrawText(i, sx, sy, CFG_SEQ_HEADER_FG, CFG_TEXT_SEQ_HEADER);
       DrawSequenceSection(i, sx, sy + L.th, L.seq_cw, L.seq_ch, gs);
     }
 #endif
@@ -1509,6 +1590,11 @@ int Prompt(const char *msg, char **response, int echo) {
   while (!done) {
     struct timeval now_tv;
     gettimeofday(&now_tv, NULL);
+    // Hold deadline until the user starts entering input.
+    if (priv.grid.buffer_count == 0 && priv.grid.current_step == 0) {
+      deadline_tv = now_tv;
+      deadline_tv.tv_sec += prompt_timeout;
+    }
     int csec_remaining = ComputeCentisecondsRemaining(&deadline_tv, &now_tv);
 
     if (echo) {
