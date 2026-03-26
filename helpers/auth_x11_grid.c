@@ -143,7 +143,7 @@ int prompt_timeout;
 
 // --- Common: Fonts ---
 
-#define CFG_FONT_NAME             "monospace"  /* Default Xft font name */
+#define CFG_FONT_NAME             "JetBrainsMono Nerd Font Mono,JetBrainsMono NFM"  /* Default Xft font name */
 #define CFG_FONT_CORE             "fixed"      /* Fallback X11 core font */
 
 // --- Common: Layout ---
@@ -176,24 +176,24 @@ int prompt_timeout;
 
 // --- Panel (outer border) ---
 
-#define CFG_PANEL_X               100
+#define CFG_PANEL_X               200
 #define CFG_PANEL_Y               100
-#define CFG_PANEL_W               (2160 - 200)
+#define CFG_PANEL_W               (2160 - 400)
 #define CFG_PANEL_H               (1350 - 200)
 #define CFG_COLOR_PANEL_BG        "#dbfd4f"  /* Panel outline color */
 
 // --- Code Matrix (5x5 grid, relative to panel top-left) ---
 
-#define CFG_MATRIX_X              100    /* Section origin X (panel-relative) */
-#define CFG_MATRIX_Y              320    /* Section origin Y (panel-relative) */
+#define CFG_MATRIX_X              200    /* Section origin X (panel-relative) */
+#define CFG_MATRIX_Y              400    /* Section origin Y (panel-relative) */
 #define CFG_GRID_CELL_W           100    /* Cell width (0 = auto) */
 #define CFG_GRID_CELL_H           100    /* Cell height (0 = auto) */
 #define CFG_GRID_PAD_H            16     /* Added to text width for auto cell_w */
 #define CFG_GRID_PAD_V            4      /* Added to text height for auto cell_h */
 #define CFG_GRID_OUTLINE_THICKNESS 2     /* 0 = no grid outline */
 #define CFG_GRID_OUTLINE_COLOR    COLOR_CYBER_GREEN
-#define CFG_GRID_OUTLINE_PAD_LEFT  40
-#define CFG_GRID_OUTLINE_PAD_RIGHT 40
+#define CFG_GRID_OUTLINE_PAD_LEFT  100
+#define CFG_GRID_OUTLINE_PAD_RIGHT 100
 #define CFG_GRID_OUTLINE_PAD_TOP   0
 #define CFG_GRID_OUTLINE_PAD_BOTTOM 0
 #define CFG_GRID_CELL_FG          COLOR_CYBER_GREEN    /* Normal cell text */
@@ -202,12 +202,12 @@ int prompt_timeout;
 #define CFG_GRID_CELL_ACTIVE_FG   COLOR_BACKGROUND     /* Current cell text */
 #define CFG_GRID_CELL_ACTIVE_BG   COLOR_CYBER_YELLOW   /* Current cell background */
 #define CFG_GRID_HIGHLIGHT_BG     COLOR_CYBER_HIGHLIGHT /* Active row/column bg */
-#define CFG_TEXT_CODE_MATRIX       "CODE MATRIX"
+#define CFG_TEXT_CODE_MATRIX       " ◪◪  CODE MATRIX"
 
 // --- Buffer (slot boxes, relative to panel top-left) ---
 
 #define CFG_BUFFER_X              1000   /* Section origin X (panel-relative) */
-#define CFG_BUFFER_Y              100    /* Section origin Y (panel-relative) */
+#define CFG_BUFFER_Y              150    /* Section origin Y (panel-relative) */
 #define CFG_BUF_CELL_W            70     /* Slot width (0 = auto) */
 #define CFG_BUF_CELL_H            60     /* Slot height (0 = auto) */
 #define CFG_BUF_PAD_H             0     /* Added to text width for auto slot_w */
@@ -223,11 +223,17 @@ int prompt_timeout;
 #define CFG_BUFFER_SLOT_EMPTY_FG  COLOR_CYBER_DIM      /* Empty slot "__" text */
 #define CFG_TEXT_BUFFER            "BUFFER"
 #define CFG_TEXT_EMPTY_SLOT        "__"
+#define CFG_BUFFER_OUTLINE_THICKNESS 3     /* 0 = no buffer outline */
+#define CFG_BUFFER_OUTLINE_COLOR  COLOR_CYBER_GREEN
+#define CFG_BUFFER_OUTLINE_PAD_LEFT   26
+#define CFG_BUFFER_OUTLINE_PAD_RIGHT  26
+#define CFG_BUFFER_OUTLINE_PAD_TOP    26
+#define CFG_BUFFER_OUTLINE_PAD_BOTTOM 26
 
 // --- Timer (relative to panel top-left) ---
 
-#define CFG_TIMER_X               100    /* Section origin X (panel-relative) */
-#define CFG_TIMER_Y               110    /* Section origin Y (panel-relative) */
+#define CFG_TIMER_X               200    /* Section origin X (panel-relative) */
+#define CFG_TIMER_Y               180    /* Section origin Y (panel-relative) */
 #define CFG_TIMER_BOX_GAP         20     /* Gap: header text → timer box */
 #define CFG_TIMER_BAR_GAP         42     /* Gap: header bottom → progress bar top */
 #define CFG_TIMER_W               0      /* Timer box width (0 = auto from text) */
@@ -244,7 +250,7 @@ int prompt_timeout;
 
 // --- Progress Bar (child of timer section) ---
 
-#define CFG_BAR_W                 650    /* Bar width (0 = auto: right panel width) */
+#define CFG_BAR_W                 700    /* Bar width (0 = auto: right panel width) */
 #define CFG_BAR_H                 16     /* Bar height (auto: th/2, min 8) */
 #define CFG_BAR_H_MIN             8      /* Minimum bar height when auto */
 #define CFG_PROGRESS_OUTLINE      COLOR_CYBER_DIM      /* Progress bar frame */
@@ -254,7 +260,7 @@ int prompt_timeout;
 // --- Sequence Required (relative to panel top-left) ---
 
 #define CFG_SEQ_X                 1000   /* Section origin X (panel-relative) */
-#define CFG_SEQ_Y                 350    /* Section origin Y (panel-relative) */
+#define CFG_SEQ_Y                 400    /* Section origin Y (panel-relative) */
 #define CFG_SEQ_CELL_W            70     /* Hex box width (0 = auto from font) */
 #define CFG_SEQ_CELL_H            60     /* Hex box height (0 = auto from font) */
 #define CFG_SEQ_PAD_H             16     /* Added to text width for auto seq cell_w */
@@ -270,11 +276,12 @@ int prompt_timeout;
 #define CFG_SEQ_HEX_OUTLINE_COMPLETE COLOR_CYBER_COMPLETE /* Hex box outline (complete) */
 #define CFG_SEQ_COMPLETE_BG       COLOR_CYBER_HIGHLIGHT /* Background fill for completed row */
 #define CFG_SEQ_COMPLETE_TEXTS    "INSTALLED,INSTALLED,INSTALLED" /* Comma-separated, one per target */
-#define CFG_TEXT_SEQ_HEADER        "SEQUENCE REQUIRED TO UPLOAD"
+#define CFG_TEXT_SEQ_HEADER        "    ◰ SEQUENCE REQUIRED TO UPLOAD DAEMON"
 
 // --- Right Panel (outline around sequence section) ---
 
-#define CFG_RIGHT_PANEL_W         0      /* Width (auto: widest label + padding) */
+#define CFG_RIGHT_PANEL_W         800      /* Overall outline width (0 = auto) */
+#define CFG_RIGHT_PANEL_H         0      /* Overall outline height (0 = auto) */
 #define CFG_RIGHT_PANEL_PAD       16     /* Padding for auto right panel width */
 #define CFG_RIGHT_PANEL_OUTLINE_THICKNESS 1  /* Outline width (0 = none) */
 #define CFG_RIGHT_PANEL_OUTLINE_COLOR COLOR_CYBER_GREEN
@@ -286,6 +293,10 @@ int prompt_timeout;
 #define BUFFER_SIZE       6
 #define NUM_HEX_CODES     4
 #define NUM_TARGETS       3
+
+// --- Decorative elements ---
+# define DYNAMIC_MATRIX_X_OFFSET 50
+# define DYNAMIC_MATRIX_Y_OFFSET 80
 
 //! The hex code strings displayed in cells.
 static const char *HEX_CODES[NUM_HEX_CODES] = {"BD", "1C", "55", "7A"};
@@ -977,8 +988,10 @@ void ComputeLayout(LayoutInfo *L) {
 
   L->rpanel_x = abs_seq_x - rp_pad;
   L->rpanel_y = abs_seq_content_y - rp_pad;
-  L->rpanel_w = rpanel_right_w + 2 * rp_pad;
-  L->rpanel_h = NUM_TARGETS * (L->seq_ch + CFG_LINE_SPACING) + 2 * rp_pad;
+  L->rpanel_w = (CFG_RIGHT_PANEL_W > 0) ? CFG_RIGHT_PANEL_W
+              : rpanel_right_w + 2 * rp_pad;
+  L->rpanel_h = (CFG_RIGHT_PANEL_H > 0) ? CFG_RIGHT_PANEL_H
+              : NUM_TARGETS * (L->seq_ch + CFG_LINE_SPACING) + 2 * rp_pad;
 }
 
 /*! \brief Compute centiseconds remaining from deadline to now.
@@ -994,25 +1007,52 @@ static int ComputeCentisecondsRemaining(const struct timeval *deadline,
 
 /*! \brief Draw animated text cycling through a list of strings.
  *
- * Picks which string to display based on wall-clock time.
+ * Picks which string to display based on wall-clock time and per-string
+ * durations.
  *
- * \param monitor  Window index.
- * \param x        X position (left edge of text).
- * \param y        Y position (text baseline).
- * \param color    Text color.
- * \param strings  Array of string pointers.
- * \param count    Number of strings in the array.
- * \param duration Seconds each string is shown before advancing.
+ * \param monitor   Window index.
+ * \param x         X position (left edge of text).
+ * \param y         Y position (text baseline).
+ * \param color     Text color.
+ * \param strings   Array of string pointers.
+ * \param count     Number of strings in the array.
+ * \param durations Array of durations (seconds) for each string.
  */
 void DrawAnimatedText(int monitor, int x, int y, enum DrawColor color,
-                      const char *const *strings, int count, float duration) {
+                      const char *const *strings, int count,
+                      const float *durations) {
   if (count <= 0) return;
+  // Total cycle length.
+  float total = 0;
+  for (int i = 0; i < count; ++i) total += durations[i];
+  if (total <= 0) return;
+
   struct timeval now;
   gettimeofday(&now, NULL);
   double t = (double)now.tv_sec + (double)now.tv_usec / 1000000.0;
-  int idx = (int)(t / (double)duration) % count;
-  if (idx < 0) idx += count;
-  DrawText(monitor, x, y, color, strings[idx]);
+  // Position within current cycle.
+  double pos = t - (double)(long long)(t / total) * total;
+  if (pos < 0) pos += total;
+
+  // Find which string is active.
+  float accum = 0;
+  int idx = 0;
+  for (int i = 0; i < count; ++i) {
+    accum += durations[i];
+    if (pos < accum) { idx = i; break; }
+  }
+  // Draw with newline support.
+  const char *s = strings[idx];
+  int line_h = TextAscent() + TextDescent() + CFG_LINE_SPACING;
+  int cy = y;
+  while (*s) {
+    const char *nl = strchr(s, '\n');
+    int len = nl ? (int)(nl - s) : (int)strlen(s);
+    DrawString(monitor, x, cy, color, s, len);
+    if (!nl) break;
+    cy += line_h;
+    s = nl + 1;
+  }
 }
 
 /*! ===========================================================
@@ -1124,6 +1164,19 @@ void DrawBufferSection(int monitor, int ox, int oy, int cell_w, int cell_h,
                        const GridState *gs) {
   int buffer_w = BUFFER_SIZE * (cell_w + CFG_SLOT_GAP) - CFG_SLOT_GAP;
 
+  // Draw buffer outline.
+  if (CFG_BUFFER_OUTLINE_THICKNESS > 0) {
+    int ol_x = ox - CFG_BUFFER_OUTLINE_PAD_LEFT - CFG_BUFFER_OUTLINE_THICKNESS;
+    int ol_y = oy - CFG_BUFFER_OUTLINE_PAD_TOP - CFG_BUFFER_OUTLINE_THICKNESS;
+    int ol_w = CFG_BUFFER_OUTLINE_PAD_LEFT + buffer_w + CFG_BUFFER_OUTLINE_PAD_RIGHT
+               + 2 * CFG_BUFFER_OUTLINE_THICKNESS;
+    int ol_h = CFG_BUFFER_OUTLINE_PAD_TOP + cell_h + CFG_BUFFER_OUTLINE_PAD_BOTTOM
+               + 2 * CFG_BUFFER_OUTLINE_THICKNESS;
+    DrawRectGlow(monitor, ol_x, ol_y, ol_w, ol_h);
+    DrawRect(monitor, ol_x, ol_y, ol_w, ol_h,
+             CFG_BUFFER_OUTLINE_COLOR, CFG_BUFFER_OUTLINE_THICKNESS);
+  }
+
   for (int i = 0; i < BUFFER_SIZE; ++i) {
     int sx = ox + i * (cell_w + CFG_SLOT_GAP);
     int sy = oy;
@@ -1206,7 +1259,7 @@ void DrawProgressBar(int monitor, int ox, int oy, int bar_w, int bar_h,
  * \param gs The current grid state.
  */
 void DrawSequenceSection(int monitor, int ox, int oy, int cell_w, int cell_h,
-                         const GridState *gs) {
+                         int panel_w, const GridState *gs) {
   // Find the longest sequence to align all DATAMINE labels at the same x.
   int max_len = 0;
   for (int t = 0; t < NUM_TARGETS; ++t) {
@@ -1214,8 +1267,8 @@ void DrawSequenceSection(int monitor, int ox, int oy, int cell_w, int cell_h,
   }
   int name_x = ox + max_len * (cell_w + CFG_SEQ_HEX_GAP)
                - CFG_SEQ_HEX_GAP + CFG_SEQ_NAME_MARGIN;
-  // Total width of the hex box area (used for complete replacement box).
-  int hex_area_w = max_len * cell_w + (max_len - 1) * CFG_SEQ_HEX_GAP;
+  // Row width for completed box spans the full panel content area.
+  int row_w = panel_w;
 
   // Parse comma-separated completion texts (one per target).
   const char *complete_texts[NUM_TARGETS];
@@ -1238,8 +1291,8 @@ void DrawSequenceSection(int monitor, int ox, int oy, int cell_w, int cell_h,
     int complete = gs->sequence_complete[t];
 
     if (complete) {
-      // Replace hex boxes with a single filled box spanning the hex area.
-      DrawBox(monitor, ox, oy, hex_area_w, cell_h,
+      // Replace entire row (hex boxes + name) with a single filled box.
+      DrawBox(monitor, ox, oy, row_w, cell_h,
               CFG_SEQ_COMPLETE_BG, CFG_SEQ_HEX_OUTLINE_COMPLETE,
               complete_texts[t], complete_text_lens[t],
               CFG_SEQ_HEX_COMPLETE_FG, 0);
@@ -1275,15 +1328,121 @@ void DrawSequenceSection(int monitor, int ox, int oy, int cell_w, int cell_h,
       }
     }
 
-    // Draw DATAMINE label at aligned column.
-    int name_y = oy + (cell_h + TextAscent() - TextDescent()) / 2;
-    enum DrawColor name_color =
-        complete ? CFG_SEQ_NAME_COMPLETE_FG : CFG_SEQ_NAME_FG;
-    const char *name = TARGETS[t].name;
-    DrawString(monitor, name_x, name_y, name_color, name, strlen(name));
+    // Draw DATAMINE label at aligned column (skip if complete — replaced above).
+    if (!complete) {
+      int name_y = oy + (cell_h + TextAscent() - TextDescent()) / 2;
+      DrawString(monitor, name_x, name_y, CFG_SEQ_NAME_FG,
+                 TARGETS[t].name, strlen(TARGETS[t].name));
+    }
 
     oy += cell_h + CFG_LINE_SPACING;
   }
+}
+
+/*! ===========================================================
+ *  DECORATIVE HEX MATRIX ANIMATION
+ *  =========================================================== */
+
+#define DECO_MAX_ROWS   16
+#define DECO_MAX_COLS   16
+#define DECO_MAX_FRAMES (DECO_MAX_ROWS * 2)
+// Max frame string: rows * (cols * 3 + newline) + null.
+#define DECO_FRAME_SIZE (DECO_MAX_ROWS * (DECO_MAX_COLS * 3 + 1) + 1)
+
+typedef struct {
+  int rows, cols;
+  int num_frames;
+  int initialized;
+  float fill_dur;       /* Duration per fill frame */
+  float clear_dur;      /* Duration per clear frame */
+  char frames[DECO_MAX_FRAMES][DECO_FRAME_SIZE];
+  float durations[DECO_MAX_FRAMES];
+  const char *ptrs[DECO_MAX_FRAMES];
+} DecoMatrix;
+
+/*! \brief Initialize a decorative hex matrix animation.
+ *
+ * Generates frames: fill phase (random cells appear row-batch at a time)
+ * then clear phase (rows disappear top to bottom). Loops via DrawAnimatedText.
+ */
+void DecoMatrixInit(DecoMatrix *dm, int rows, int cols,
+                    float fill_dur, float clear_dur) {
+  if (rows > DECO_MAX_ROWS) rows = DECO_MAX_ROWS;
+  if (cols > DECO_MAX_COLS) cols = DECO_MAX_COLS;
+  dm->rows = rows;
+  dm->cols = cols;
+  dm->num_frames = rows * 2;
+  dm->fill_dur = fill_dur;
+  dm->clear_dur = clear_dur;
+  dm->initialized = 1;
+
+  int total = rows * cols;
+
+  // Random hex pair per cell.
+  char cells[DECO_MAX_ROWS][DECO_MAX_COLS][3];
+  int fill_order[DECO_MAX_ROWS * DECO_MAX_COLS];
+  for (int r = 0; r < rows; ++r)
+    for (int c = 0; c < cols; ++c) {
+      const char *h = HEX_CODES[rand() % NUM_HEX_CODES];
+      cells[r][c][0] = h[0];
+      cells[r][c][1] = h[1];
+      cells[r][c][2] = '\0';
+      fill_order[r * cols + c] = r * cols + c;
+    }
+  // Fisher-Yates shuffle.
+  for (int i = total - 1; i > 0; --i) {
+    int j = rand() % (i + 1);
+    int tmp = fill_order[i]; fill_order[i] = fill_order[j]; fill_order[j] = tmp;
+  }
+
+  // Fill phase: reveal cells_per_frame cells each frame.
+  int cpf = total / rows;
+  int visible[DECO_MAX_ROWS * DECO_MAX_COLS];
+  memset(visible, 0, sizeof(visible));
+
+  for (int f = 0; f < rows; ++f) {
+    for (int k = 0; k < cpf && f * cpf + k < total; ++k)
+      visible[fill_order[f * cpf + k]] = 1;
+    char *p = dm->frames[f];
+    for (int r = 0; r < rows; ++r) {
+      if (r > 0) *p++ = '\n';
+      for (int c = 0; c < cols; ++c) {
+        if (c > 0) *p++ = ' ';
+        int idx = r * cols + c;
+        *p++ = visible[idx] ? cells[r][c][0] : ' ';
+        *p++ = visible[idx] ? cells[r][c][1] : ' ';
+      }
+    }
+    *p = '\0';
+    dm->durations[f] = fill_dur;
+  }
+
+  // Clear phase: remove rows top to bottom.
+  for (int f = 0; f < rows; ++f) {
+    char *p = dm->frames[rows + f];
+    for (int r = 0; r < rows; ++r) {
+      if (r > 0) *p++ = '\n';
+      for (int c = 0; c < cols; ++c) {
+        if (c > 0) *p++ = ' ';
+        *p++ = (r < f) ? ' ' : cells[r][c][0];
+        *p++ = (r < f) ? ' ' : cells[r][c][1];
+      }
+    }
+    *p = '\0';
+    dm->durations[rows + f] = clear_dur;
+  }
+
+  for (int f = 0; f < dm->num_frames; ++f)
+    dm->ptrs[f] = dm->frames[f];
+}
+
+/*! \brief Draw a decorative hex matrix animation.
+ */
+void DecoMatrixDraw(DecoMatrix *dm, int monitor, int x, int y,
+                    enum DrawColor color) {
+  if (!dm->initialized) return;
+  DrawAnimatedText(monitor, x, y, color,
+                   dm->ptrs, dm->num_frames, dm->durations);
 }
 
 /*! \brief Display the full Breach Protocol UI (all sections).
@@ -1336,6 +1495,38 @@ void DisplayBreachProtocolFull(const GridState *gs, int csec_remaining,
     int px = cx + CFG_PANEL_X;
     int py = cy + CFG_PANEL_Y;
 
+    // Draw decorations
+    static const char *const ANIMATED_STRINGS[] = {
+      "              \n   NET≡≡≡TECH   \n              ",
+      "≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡\n≡≡≡NET≡≡≡TECH≡≡≡\n≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡",
+      "              \n   NET≡≡≡TECH   \n              ",
+      "≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡\n≡≡≡NET≡≡≡TECH≡≡≡\n≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡",
+    };
+    static const float ANIMATED_DURATIONS[] = {
+      3.0f, 1.0f, 3.0f, 2.0f,
+    };
+    DrawAnimatedText(i, 20, 20, COLOR_CYBER_YELLOW, ANIMATED_STRINGS, 4, ANIMATED_DURATIONS);
+
+    // 8x8 hex matrix decoration below right panel.
+#if CFG_SHOW_RIGHT_PANEL
+    {
+      static DecoMatrix deco1;
+      if (!deco1.initialized) DecoMatrixInit(&deco1, 8, 8, 0.4f, 0.3f);
+      int rpx = cx + L.rpanel_x;
+      int rpy = cy + L.rpanel_y;
+      DecoMatrixDraw(&deco1, i, rpx, rpy + L.rpanel_h + 20 + TextAscent(),
+                     COLOR_CYBER_DIM);
+    }
+    {
+      static DecoMatrix deco2;
+      if (!deco2.initialized) DecoMatrixInit(&deco2, 5, 5, 0.4f, 0.3f);
+      int rpx = cx + L.rpanel_x + 250;
+      int rpy = cy + L.rpanel_y + 150;
+      DecoMatrixDraw(&deco2, i, rpx, rpy + L.rpanel_h + 20 + TextAscent(),
+                     COLOR_CYBER_YELLOW);
+    }
+#endif
+
     // Draw panel outline.
 #if CFG_SHOW_PANEL
     DrawRectGlow(i, px, py, CFG_PANEL_W, CFG_PANEL_H);
@@ -1363,7 +1554,7 @@ void DisplayBreachProtocolFull(const GridState *gs, int csec_remaining,
       };
       DrawPolygonGlow(i, rp_pent, 6, 0);
       XDrawLines(display, backbuf[i],
-                 gcs_all[COLOR_CYBER_DIM][i],
+                 gcs_all[COLOR_CYBER_YELLOW][i],
                  rp_pent, 6, CoordModeOrigin);
     }
 #endif
@@ -1407,7 +1598,8 @@ void DisplayBreachProtocolFull(const GridState *gs, int csec_remaining,
       int sx = px + CFG_SEQ_X;
       int sy = py + CFG_SEQ_Y;
       DrawText(i, sx, sy, CFG_SEQ_HEADER_FG, CFG_TEXT_SEQ_HEADER);
-      DrawSequenceSection(i, sx, sy + L.th, L.seq_cw, L.seq_ch, gs);
+      DrawSequenceSection(i, sx, sy + L.th, L.seq_cw, L.seq_ch,
+                          L.rpanel_w - 2 * CFG_RIGHT_PANEL_OUTLINE_PAD, gs);
     }
 #endif
     // Blit backbuffer to window atomically.
@@ -1610,13 +1802,9 @@ int Prompt(const char *msg, char **response, int echo) {
         need_full_redraw = 0;
       }
     } else {
-      // Password mode: full redraw on input, timer-only on tick.
-      if (need_full_redraw) {
-        DisplayBreachProtocolFull(&priv.grid, csec_remaining, csec_total);
-        need_full_redraw = 0;
-      } else {
-        RedrawTimerOnly(csec_remaining, csec_total);
-      }
+      // Password mode: full redraw every tick (animated text needs continuous updates).
+      DisplayBreachProtocolFull(&priv.grid, csec_remaining, csec_total);
+      need_full_redraw = 0;
     }
 
     if (!played_sound) {
@@ -1871,7 +2059,7 @@ int main(int argc_local, char **argv_local) {
                    &xcolors[COLOR_CYBER_YELLOW], &dummy);
   XAllocNamedColor(display, colormap, CFG_COLOR_CYBER_HIGHLIGHT,
                    &xcolors[COLOR_CYBER_HIGHLIGHT], &dummy);
-  XAllocNamedColor(display, colormap, CFG_COLOR_CYBER_RED,
+  XAllocNamedColor(display, colormap, CFG_COLOR_CYBER_YELLOW,
                    &xcolors[COLOR_CYBER_RED], &dummy);
   XAllocNamedColor(display, colormap, CFG_COLOR_CYBER_COMPLETE,
                    &xcolors[COLOR_CYBER_COMPLETE], &dummy);
