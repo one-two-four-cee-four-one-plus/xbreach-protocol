@@ -101,7 +101,9 @@ enum DrawColor {
   COLOR_GLOW_1,       /* Inner glow ring (brightest) */
   COLOR_GLOW_2,       /* Middle glow ring */
   COLOR_GLOW_3,       /* Outer glow ring (dimmest) */
-  COLOR_COUNT
+  COLOR_RAIN_BASE,    /* First rain gradient color (brightest, bottom) */
+  /* Reserve slots for up to 40 rain gradient groups. */
+  COLOR_COUNT = COLOR_RAIN_BASE + 40
 };
 
 //! Number of args.
@@ -141,9 +143,25 @@ int prompt_timeout;
 #define CFG_GLOW_LAYERS           3          /* Number of glow rings (0 = disabled) */
 #define CFG_GLOW_SPREAD           3          /* Pixels per glow ring */
 
+// --- Rain Matrix (background scrolling hex) ---
+
+#define CFG_RAIN_SHOW             1          /* 1 = enable background rain */
+#define CFG_RAIN_ROWS             76         /* Number of visible rows */
+#define CFG_RAIN_COLS             96         /* Number of columns */
+#define CFG_RAIN_SPEED            36.0f      /* Cells filled per second */
+#define CFG_RAIN_FONT             "monospace:size=9"  /* Font for rain text */
+#define CFG_RAIN_GROUP_SIZE       4          /* Rows per gradient group */
+#define CFG_RAIN_BASE_R           0x1a       /* Base color R (brightest group) */
+#define CFG_RAIN_BASE_G           0x3a       /* Base color G */
+#define CFG_RAIN_BASE_B           0x10       /* Base color B */
+#define CFG_RAIN_STEP_R           1          /* R decrease per group */
+#define CFG_RAIN_STEP_G           2          /* G decrease per group */
+#define CFG_RAIN_STEP_B           0          /* B decrease per group */
+
 // --- Common: Fonts ---
 
-#define CFG_FONT_NAME             "JetBrainsMono Nerd Font Mono,JetBrainsMono NFM"  /* Default Xft font name */
+/* Default Xft font name */
+#define CFG_FONT_NAME             "JetBrainsMono Nerd Font Mono,JetBrainsMono NFM:size=20"
 #define CFG_FONT_CORE             "fixed"      /* Fallback X11 core font */
 
 // --- Common: Layout ---
@@ -221,7 +239,7 @@ int prompt_timeout;
 #define CFG_BUFFER_SLOT_FILLED_FG COLOR_CYBER_YELLOW   /* Filled slot hex text */
 #define CFG_BUFFER_SLOT_FILLED_BG COLOR_CYBER_HIGHLIGHT /* Confirmed slot background */
 #define CFG_BUFFER_SLOT_EMPTY_FG  COLOR_CYBER_DIM      /* Empty slot "__" text */
-#define CFG_TEXT_BUFFER            "BUFFER"
+#define CFG_TEXT_BUFFER            " ⬡ BUFFER"
 #define CFG_TEXT_EMPTY_SLOT        "__"
 #define CFG_BUFFER_OUTLINE_THICKNESS 3     /* 0 = no buffer outline */
 #define CFG_BUFFER_OUTLINE_COLOR  COLOR_CYBER_GREEN
@@ -280,7 +298,7 @@ int prompt_timeout;
 
 // --- Right Panel (outline around sequence section) ---
 
-#define CFG_RIGHT_PANEL_W         800      /* Overall outline width (0 = auto) */
+#define CFG_RIGHT_PANEL_W         880      /* Overall outline width (0 = auto) */
 #define CFG_RIGHT_PANEL_H         0      /* Overall outline height (0 = auto) */
 #define CFG_RIGHT_PANEL_PAD       16     /* Padding for auto right panel width */
 #define CFG_RIGHT_PANEL_OUTLINE_THICKNESS 1  /* Outline width (0 = none) */
@@ -638,16 +656,99 @@ void UpdatePerMonitorWindows(int monitors_changed, int region_w, int region_h,
  *  TEXT HELPERS (grid-specific)
  *  =========================================================== */
 
-/*! \brief Draw a string with a specific color.
+// --- Font and spacing override system ---
+// When non-NULL, drawing/measuring functions use the override font
+// instead of the default xft_font / core_font.
+#ifdef HAVE_XFT_EXT
+static XftFont *override_xft_font = NULL;
+#endif
+static XFontStruct *override_core_font = NULL;
+static int override_line_spacing = -1;  /* -1 = use CFG_LINE_SPACING */
+
+/*! \brief Push a font and spacing override (non-owning — caller manages font lifetime).
+ *
+ * All text drawing/measuring uses this font until FontPop().
+ * Pass NULL for either font parameter to keep using the default for that backend.
+ * Pass -1 for line_spacing to keep using CFG_LINE_SPACING.
+ */
+void FontPush(
+#ifdef HAVE_XFT_EXT
+    XftFont *xft,
+#else
+    void *xft,
+#endif
+    XFontStruct *core, int line_spacing) {
+  (void)xft;
+#ifdef HAVE_XFT_EXT
+  override_xft_font = xft;
+#endif
+  override_core_font = core;
+  override_line_spacing = line_spacing;
+}
+
+/*! \brief Pop the font and spacing override, reverting to defaults.
+ */
+void FontPop(void) {
+#ifdef HAVE_XFT_EXT
+  override_xft_font = NULL;
+#endif
+  override_core_font = NULL;
+  override_line_spacing = -1;
+}
+
+// Active font accessors: override if set, otherwise default.
+#ifdef HAVE_XFT_EXT
+static inline XftFont *ActiveXftFont(void) {
+  return override_xft_font ? override_xft_font : xft_font;
+}
+#endif
+static inline XFontStruct *ActiveCoreFont(void) {
+  return override_core_font ? override_core_font : core_font;
+}
+
+int ActiveTextAscent(void) {
+#ifdef HAVE_XFT_EXT
+  XftFont *f = ActiveXftFont();
+  if (f != NULL) return f->ascent;
+#endif
+  return ActiveCoreFont()->max_bounds.ascent;
+}
+
+int ActiveTextDescent(void) {
+#ifdef HAVE_XFT_EXT
+  XftFont *f = ActiveXftFont();
+  if (f != NULL) return f->descent;
+#endif
+  return ActiveCoreFont()->max_bounds.descent;
+}
+
+int ActiveLineSpacing(void) {
+  return (override_line_spacing >= 0) ? override_line_spacing : CFG_LINE_SPACING;
+}
+
+int ActiveTextWidth(const char *string, int len) {
+#ifdef HAVE_XFT_EXT
+  XftFont *f = ActiveXftFont();
+  if (f != NULL) {
+    XGlyphInfo extents;
+    XftTextExtentsUtf8(display, f, (const FcChar8 *)string, len, &extents);
+    return extents.xOff + 2 * XGlyphInfoExpandAmount(&extents);
+  }
+#endif
+  return XTextWidth(ActiveCoreFont(), string, len);
+}
+
+/*! \brief Draw a string with a specific color (uses active font).
  */
 void DrawString(int monitor, int x, int y, enum DrawColor color,
                 const char *string, int len) {
 #ifdef HAVE_XFT_EXT
-  if (xft_font != NULL) {
+  XftFont *f = ActiveXftFont();
+  if (f != NULL) {
     XGlyphInfo extents;
-    XftTextExtentsUtf8(display, xft_font, (const FcChar8 *)string, len,
+    XftTextExtentsUtf8(display, f, (const FcChar8 *)string, len,
                        &extents);
-    XftDrawStringUtf8(xft_draws[monitor], &xft_colors[color], xft_font,
+    XftDrawStringUtf8(xft_draws[monitor], &xft_colors[color], f,
                       x + XGlyphInfoExpandAmount(&extents), y,
                       (const FcChar8 *)string, len);
     return;
@@ -792,12 +893,21 @@ void DrawLine(int monitor, int x1, int y1, int x2, int y2,
   }
 }
 
-/*! \brief Draw a null-terminated string (convenience wrapper over DrawString).
+/*! \brief Draw a null-terminated string, respecting newlines.
  */
 void DrawText(int monitor, int x, int y, enum DrawColor color,
               const char *text) {
-  int len = strlen(text);
-  DrawString(monitor, x, y, color, text, len);
+  int line_h = ActiveTextAscent() + ActiveTextDescent() + ActiveLineSpacing();
+  const char *s = text;
+  int cy = y;
+  while (*s) {
+    const char *nl = strchr(s, '\n');
+    int len = nl ? (int)(nl - s) : (int)strlen(s);
+    DrawString(monitor, x, cy, color, s, len);
+    if (!nl) break;
+    cy += line_h;
+    s = nl + 1;
+  }
 }
 
 /*! \brief Draw a filled and/or outlined polygon. Use NO_COLOR to skip.
@@ -1041,18 +1151,7 @@ void DrawAnimatedText(int monitor, int x, int y, enum DrawColor color,
     accum += durations[i];
     if (pos < accum) { idx = i; break; }
   }
-  // Draw with newline support.
-  const char *s = strings[idx];
-  int line_h = TextAscent() + TextDescent() + CFG_LINE_SPACING;
-  int cy = y;
-  while (*s) {
-    const char *nl = strchr(s, '\n');
-    int len = nl ? (int)(nl - s) : (int)strlen(s);
-    DrawString(monitor, x, cy, color, s, len);
-    if (!nl) break;
-    cy += line_h;
-    s = nl + 1;
-  }
+  DrawText(monitor, x, y, color, strings[idx]);
 }
 
 /*! ===========================================================
@@ -1149,6 +1248,37 @@ void DrawCodeMatrix(int monitor, int ox, int oy, int cell_w, int cell_h,
               text_color, 0);
     }
   }
+
+  // Decorations
+  static const char *const ANIMATED_STRINGS[] = {
+      "▂▁▗▟ ONLY CC35 CERTIFIED\n▚▘█▐ AND DHSF 5TH CLASS OFFICERS\n▟▃▚▞ ARE ALLOWED TO MANIPULATE,\n█▘▞█ ACCESS OR DISABLE THIS DEVICE.",
+      "",
+      "▂▁▗▟ ONLY CC35 CERTIFIED\n▚▘█▐ AND DHSF 5TH CLASS OFFICERS\n▟▃▚▞ ARE ALLOWED TO MANIPULATE,\n█▘▞█ ACCESS OR DISABLE THIS DEVICE.",
+      "",
+      "▂▁▗▟ ONLY CC35 CERTIFIED\n▚▘█▐ AND DHSF 5TH CLASS OFFICERS\n▟▃▚▞ ARE ALLOWED TO MANIPULATE,\n█▘▞█ ACCESS OR DISABLE THIS DEVICE.",
+      "",
+      "▂▁▗▟ ONLY CC35 CERTIFIED\n▚▘█▐ AND DHSF 5TH CLASS OFFICERS\n▟▃▚▞ ARE ALLOWED TO MANIPULATE,\n█▘▞█ ACCESS OR DISABLE THIS DEVICE.",
+      "",
+    };
+    static const float ANIMATED_DURATIONS[] = {
+      4.0f, 1.0f, 0.3f, 0.3f, 0.3f, 0.3f, 0.3f, 0.3f
+    };
+
+    static XftFont *font_override = NULL;
+    if (!font_override)
+      font_override = FixedXftFontOpenName(display, DefaultScreen(display),
+                                           "monospace:size=6");
+    FontPush(font_override, NULL, 0);
+    DrawAnimatedText(monitor, ox, oy + cells_h + cell_h / 4,
+                     COLOR_CYBER_YELLOW, ANIMATED_STRINGS, 8, ANIMATED_DURATIONS);
+
+    static const char *const NUMBERS = \
+      "2.24645  2 . 3  4 8 0        02:23  1.93743  0 . 4  4 3 5        02:28\n"
+      "0.45654  0 . 1  4 0 0        02:35  4.93743  0 . 0  0 0 0        02:42\n"
+      "   0.93743  0 . 4  4          02:50";
+    DrawText(monitor, ox + cell_w * 2.5, oy + cells_h + cell_h / 4,
+             COLOR_CYBER_YELLOW, NUMBERS);
+    FontPop();
 }
 
 /*! \brief Draw the BUFFER section (filled and empty slots).
@@ -1337,6 +1467,18 @@ void DrawSequenceSection(int monitor, int ox, int oy, int cell_w, int cell_h,
 
     oy += cell_h + CFG_LINE_SPACING;
   }
+
+  // Decorations
+  static XftFont *font_override = NULL;
+  if (!font_override)
+    font_override = FixedXftFontOpenName(display, DefaultScreen(display),
+                                    "monospace:size=6");
+  FontPush(font_override, NULL, -1);
+  DrawText(monitor, ox, oy + cell_h / 3, COLOR_CYBER_YELLOW,
+           "CUSTOM GLITCHES ON UI MAY APPEAR BASED ON THIS ANALYSIS,\n"
+           "DOCUMENT/D/1II9YQJZ5XQLH8N2LV9N7EUJVXO5YVZP2KXUOQ6A\n"
+           "TYPE: CYBERSPACE");
+  FontPop();
 }
 
 /*! ===========================================================
@@ -1445,6 +1587,123 @@ void DecoMatrixDraw(DecoMatrix *dm, int monitor, int x, int y,
                    dm->ptrs, dm->num_frames, dm->durations);
 }
 
+/*! ===========================================================
+ *  RAIN MATRIX (background scrolling hex)
+ *  =========================================================== */
+
+#define RAIN_MAX_ROWS 76
+#define RAIN_MAX_COLS 96
+
+typedef struct {
+  int rows, cols;
+  int initialized;
+  char cells[RAIN_MAX_ROWS][RAIN_MAX_COLS][3];  /* "XX\0" or "\0" = empty */
+  int fill_col;         /* Next column to fill in bottom row */
+  double last_tick;     /* Timestamp of last cell placement */
+  float speed;          /* Cells per second */
+#ifdef HAVE_XFT_EXT
+  XftFont *font;        /* Dedicated rain font (owned) */
+#endif
+} RainMatrix;
+
+/*! \brief Initialize the rain matrix.
+ */
+void RainMatrixInit(RainMatrix *rm, int rows, int cols, float speed,
+                    const char *font_pattern) {
+  if (rows > RAIN_MAX_ROWS) rows = RAIN_MAX_ROWS;
+  if (cols > RAIN_MAX_COLS) cols = RAIN_MAX_COLS;
+  rm->rows = rows;
+  rm->cols = cols;
+  rm->speed = speed;
+  rm->fill_col = 0;
+  /* Pre-fill all rows except the last with random hex values. */
+  for (int r = 0; r < rows - 1; ++r)
+    for (int c = 0; c < cols; ++c)
+      snprintf(rm->cells[r][c], 3, "%02X", rand() % 256);
+  /* Last row starts empty (will be filled cell by cell). */
+  memset(rm->cells[rows - 1], 0, sizeof(rm->cells[0]));
+#ifdef HAVE_XFT_EXT
+  rm->font = FixedXftFontOpenName(display, DefaultScreen(display),
+                                   font_pattern);
+#endif
+  struct timeval tv;
+  gettimeofday(&tv, NULL);
+  rm->last_tick = (double)tv.tv_sec + (double)tv.tv_usec / 1000000.0;
+  rm->initialized = 1;
+}
+
+/*! \brief Advance the rain state based on elapsed time.
+ */
+static void RainMatrixUpdate(RainMatrix *rm) {
+  struct timeval tv;
+  gettimeofday(&tv, NULL);
+  double now = (double)tv.tv_sec + (double)tv.tv_usec / 1000000.0;
+  int cells_to_add = (int)((now - rm->last_tick) * rm->speed);
+  if (cells_to_add <= 0) return;
+  rm->last_tick = now;
+
+  for (int n = 0; n < cells_to_add; ++n) {
+    if (rm->fill_col >= rm->cols) {
+      /* Bottom row full — shift all rows up, clear bottom. */
+      memmove(rm->cells[0], rm->cells[1],
+              (rm->rows - 1) * sizeof(rm->cells[0]));
+      memset(rm->cells[rm->rows - 1], 0, sizeof(rm->cells[0]));
+      rm->fill_col = 0;
+    }
+    int val = rand() % 256;
+    snprintf(rm->cells[rm->rows - 1][rm->fill_col], 3, "%02X", val);
+    rm->fill_col++;
+  }
+}
+
+/*! \brief Draw the rain matrix as a full-screen background.
+ */
+void RainMatrixDraw(RainMatrix *rm, int monitor, int x, int y) {
+  if (!rm->initialized) return;
+  RainMatrixUpdate(rm);
+
+  /* Push rain font. */
+#ifdef HAVE_XFT_EXT
+  FontPush(rm->font, NULL, -1);
+#else
+  FontPush(NULL, NULL, -1);
+#endif
+  int line_h = ActiveTextAscent() + ActiveTextDescent() + 2;
+
+  int num_groups = rm->rows / CFG_RAIN_GROUP_SIZE;
+  if (num_groups < 1) num_groups = 1;
+  if (num_groups > 40) num_groups = 40;
+
+  for (int r = 0; r < rm->rows; ++r) {
+    /* Group 0 = bottom rows (brightest), higher = older/dimmer. */
+    int dist = rm->rows - 1 - r;
+    int group = dist / CFG_RAIN_GROUP_SIZE;
+    if (group >= num_groups) group = num_groups - 1;
+    enum DrawColor color = (enum DrawColor)(COLOR_RAIN_BASE + group);
+
+    /* Build row string: "A3 F2 1C ..." */
+    char line[RAIN_MAX_COLS * 3 + 1];
+    char *p = line;
+    int has_content = 0;
+    for (int c = 0; c < rm->cols; ++c) {
+      if (c > 0) *p++ = ' ';
+      if (rm->cells[r][c][0]) {
+        *p++ = rm->cells[r][c][0];
+        *p++ = rm->cells[r][c][1];
+        has_content = 1;
+      } else {
+        *p++ = ' ';
+        *p++ = ' ';
+      }
+    }
+    *p = '\0';
+    if (has_content)
+      DrawString(monitor, x, y + r * line_h, color, line, (int)(p - line));
+  }
+
+  FontPop();
+}
+
 /*! \brief Display the full Breach Protocol UI (all sections).
  *
  * Draws everything to offscreen backbuffers, then blits atomically.
@@ -1487,6 +1746,17 @@ void DisplayBreachProtocolFull(const GridState *gs, int csec_remaining,
     // Clear backbuffer.
     FillRect(i, 0, 0, backbuf_w[i], backbuf_h[i], COLOR_CONTENT_BG);
 
+    // Background rain matrix.
+#if CFG_RAIN_SHOW
+    {
+      static RainMatrix rain;
+      if (!rain.initialized)
+        RainMatrixInit(&rain, CFG_RAIN_ROWS, CFG_RAIN_COLS,
+                       CFG_RAIN_SPEED, CFG_RAIN_FONT);
+      RainMatrixDraw(&rain, i, 4, ActiveTextAscent() + 4);
+    }
+#endif
+
     // Center content on the monitor with burn-in offset.
     int cx = (backbuf_w[i] - L.region_w) / 2 + content_x_offset;
     int cy = (backbuf_h[i] - L.region_h) / 2 + content_y_offset;
@@ -1498,34 +1768,50 @@ void DisplayBreachProtocolFull(const GridState *gs, int csec_remaining,
     // Draw decorations
     static const char *const ANIMATED_STRINGS[] = {
       "              \n   NET≡≡≡TECH   \n              ",
-      "≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡\n≡≡≡NET≡≡≡TECH≡≡≡\n≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡",
+      "≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡\n≡≡≡NET≡≡≡TECH≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡\n≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡",
       "              \n   NET≡≡≡TECH   \n              ",
-      "≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡\n≡≡≡NET≡≡≡TECH≡≡≡\n≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡",
+      "≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡\n≡≡≡NET≡≡≡TECH≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡\n≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡",
+      "              \n   NET≡≡≡TECH   \n              ",
+      "≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡\n≡≡≡NET≡≡≡TECH≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡\n≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡",
+      "              \n   NET≡≡≡TECH   \n              ",
+      "≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡\n≡≡≡NET≡≡≡TECH≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡\n≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡",
     };
     static const float ANIMATED_DURATIONS[] = {
-      3.0f, 1.0f, 3.0f, 2.0f,
+      3.0f, 0.3f, 0.3f, 0.3f, 0.3f, 0.3f, 0.3f, 3.0f
     };
-    DrawAnimatedText(i, 20, 20, COLOR_CYBER_YELLOW, ANIMATED_STRINGS, 4, ANIMATED_DURATIONS);
 
-    // 8x8 hex matrix decoration below right panel.
+    static XftFont *font_override = NULL;
+    if (!font_override)
+      font_override = FixedXftFontOpenName(display, DefaultScreen(display),
+                                           "monospace:size=10");
+    FontPush(font_override, NULL, -1);
+    DrawAnimatedText(i, 20, 20, COLOR_CYBER_YELLOW, ANIMATED_STRINGS, 8, ANIMATED_DURATIONS);
+    FontPop();
+
+    // Decorations
 #if CFG_SHOW_RIGHT_PANEL
     {
-      static DecoMatrix deco1;
-      if (!deco1.initialized) DecoMatrixInit(&deco1, 8, 8, 0.4f, 0.3f);
+      static DecoMatrix deco_matrix;
+      if (!deco_matrix.initialized) DecoMatrixInit(&deco_matrix, 10, 10, 0.3f, 0.1f);
       int rpx = cx + L.rpanel_x;
       int rpy = cy + L.rpanel_y;
-      DecoMatrixDraw(&deco1, i, rpx, rpy + L.rpanel_h + 20 + TextAscent(),
+      DecoMatrixDraw(&deco_matrix, i, rpx + 100, rpy + L.rpanel_h + 80 + TextAscent(),
                      COLOR_CYBER_DIM);
     }
-    {
-      static DecoMatrix deco2;
-      if (!deco2.initialized) DecoMatrixInit(&deco2, 5, 5, 0.4f, 0.3f);
-      int rpx = cx + L.rpanel_x + 250;
-      int rpy = cy + L.rpanel_y + 150;
-      DecoMatrixDraw(&deco2, i, rpx, rpy + L.rpanel_h + 20 + TextAscent(),
-                     COLOR_CYBER_YELLOW);
-    }
 #endif
+
+  {
+    static XftFont *font_override = NULL;
+    if (!font_override)
+      font_override = FixedXftFontOpenName(display, DefaultScreen(display),
+                                           "monospace:size=7");
+    FontPush(font_override, NULL, -1);
+    DrawText(i, CFG_PANEL_X, CFG_PANEL_Y + CFG_PANEL_H + 10, COLOR_CYBER_YELLOW,
+             "CUSTOM GLITCHES ON UI MAY APPEAR BASED ON THIS ANALYSIS,\n"
+             "DOCUMENT/D/1II9YQJZ5XQLH8N2LV9N7EUJVXO5YVZP2KXUOQ6A\n"
+             "TYPE: CYBERSPACE");
+    FontPop();
+  }
 
     // Draw panel outline.
 #if CFG_SHOW_PANEL
@@ -1545,12 +1831,12 @@ void DisplayBreachProtocolFull(const GridState *gs, int csec_remaining,
                CFG_RIGHT_PANEL_OUTLINE_COLOR, CFG_RIGHT_PANEL_OUTLINE_THICKNESS);
       // Pentagon outline sitting on top of right panel outline.
       XPoint rp_pent[6] = {
-        { rpx + L.rpanel_w / 30,  rpy - L.rpanel_h / 5 },
-        { rpx + L.rpanel_w,       rpy - L.rpanel_h / 5 },
+        { rpx + L.rpanel_w / 50,  rpy - L.rpanel_h / 4 },
+        { rpx + L.rpanel_w,       rpy - L.rpanel_h / 4 },
         { rpx + L.rpanel_w,       rpy                   },
         { rpx,                    rpy                   },
-        { rpx,                    rpy - L.rpanel_h / 10 },
-        { rpx + L.rpanel_w / 30,  rpy - L.rpanel_h / 5 },
+        { rpx,                    rpy - L.rpanel_h / 8 },
+        { rpx + L.rpanel_w / 50,  rpy - L.rpanel_h / 4 },
       };
       DrawPolygonGlow(i, rp_pent, 6, 0);
       XDrawLines(display, backbuf[i],
@@ -1597,7 +1883,7 @@ void DisplayBreachProtocolFull(const GridState *gs, int csec_remaining,
     {
       int sx = px + CFG_SEQ_X;
       int sy = py + CFG_SEQ_Y;
-      DrawText(i, sx, sy, CFG_SEQ_HEADER_FG, CFG_TEXT_SEQ_HEADER);
+      DrawText(i, sx, sy + L.seq_ch / 10, CFG_SEQ_HEADER_FG, CFG_TEXT_SEQ_HEADER);
       DrawSequenceSection(i, sx, sy + L.th, L.seq_cw, L.seq_ch,
                           L.rpanel_w - 2 * CFG_RIGHT_PANEL_OUTLINE_PAD, gs);
     }
@@ -2079,6 +2365,25 @@ int main(int argc_local, char **argv_local) {
                    &xcolors[COLOR_GLOW_2], &dummy);
   XAllocNamedColor(display, colormap, CFG_COLOR_GLOW_3,
                    &xcolors[COLOR_GLOW_3], &dummy);
+
+  // Allocate rain gradient colors.
+  {
+    int num_groups = CFG_RAIN_ROWS / CFG_RAIN_GROUP_SIZE;
+    if (num_groups < 1) num_groups = 1;
+    if (num_groups > 40) num_groups = 40;
+    for (int g = 0; g < num_groups; ++g) {
+      int r = CFG_RAIN_BASE_R - g * CFG_RAIN_STEP_R;
+      int gr = CFG_RAIN_BASE_G - g * CFG_RAIN_STEP_G;
+      int b = CFG_RAIN_BASE_B - g * CFG_RAIN_STEP_B;
+      if (r < 0) r = 0;
+      if (gr < 0) gr = 0;
+      if (b < 0) b = 0;
+      char hex[8];
+      snprintf(hex, sizeof(hex), "#%02x%02x%02x", r, gr, b);
+      XAllocNamedColor(display, colormap, hex,
+                       &xcolors[COLOR_RAIN_BASE + g], &dummy);
+    }
+  }
 
   core_font = NULL;
 #ifdef HAVE_XFT_EXT
