@@ -132,7 +132,7 @@ int prompt_timeout;
 #define CFG_COLOR_CYBER_YELLOW    "#dbfd4f"  /* Current cell, filled slots, timer */
 #define CFG_COLOR_CYBER_HIGHLIGHT "#212031"  /* Active row/column background */
 #define CFG_COLOR_CYBER_RED       "#ff3333"  /* Low-time warning */
-#define CFG_COLOR_CYBER_COMPLETE  "#00ffcc"  /* Completed sequences */
+#define CFG_COLOR_CYBER_COMPLETE  "#1cd577"  /* Completed sequences */
 #define CFG_COLOR_CONTENT_BG      "#0e0e17"  /* Background behind content region */
 
 // --- Glow Effect ---
@@ -239,13 +239,13 @@ int prompt_timeout;
 #define CFG_BUFFER_SLOT_FILLED_FG COLOR_CYBER_YELLOW   /* Filled slot hex text */
 #define CFG_BUFFER_SLOT_FILLED_BG COLOR_CYBER_HIGHLIGHT /* Confirmed slot background */
 #define CFG_BUFFER_SLOT_EMPTY_FG  COLOR_CYBER_DIM      /* Empty slot "__" text */
-#define CFG_TEXT_BUFFER            " ⬡ BUFFER"
+#define CFG_TEXT_BUFFER            " ▊▊▊▊BUFFER"
 #define CFG_TEXT_EMPTY_SLOT        "__"
 #define CFG_BUFFER_OUTLINE_THICKNESS 3     /* 0 = no buffer outline */
 #define CFG_BUFFER_OUTLINE_COLOR  COLOR_CYBER_GREEN
 #define CFG_BUFFER_OUTLINE_PAD_LEFT   26
 #define CFG_BUFFER_OUTLINE_PAD_RIGHT  26
-#define CFG_BUFFER_OUTLINE_PAD_TOP    26
+#define CFG_BUFFER_OUTLINE_PAD_TOP    42
 #define CFG_BUFFER_OUTLINE_PAD_BOTTOM 26
 
 // --- Timer (relative to panel top-left) ---
@@ -289,12 +289,14 @@ int prompt_timeout;
 #define CFG_SEQ_NAME_FG           COLOR_CYBER_GREEN    /* Target name (incomplete) */
 #define CFG_SEQ_NAME_COMPLETE_FG  COLOR_CYBER_COMPLETE /* Target name (complete) */
 #define CFG_SEQ_HEX_FG           COLOR_CYBER_YELLOW   /* Target hex (incomplete) */
-#define CFG_SEQ_HEX_COMPLETE_FG  COLOR_CYBER_COMPLETE /* Target hex (complete) */
+#define CFG_SEQ_HEX_COMPLETE_FG  COLOR_BACKGROUND       /* Target hex (matched) text */
+#define CFG_SEQ_HEX_COMPLETE_BG  COLOR_CYBER_COMPLETE     /* Target hex (matched) background */
 #define CFG_SEQ_HEX_OUTLINE      COLOR_CYBER_DIM      /* Hex code box outline */
 #define CFG_SEQ_HEX_OUTLINE_COMPLETE COLOR_CYBER_COMPLETE /* Hex box outline (complete) */
-#define CFG_SEQ_COMPLETE_BG       COLOR_CYBER_HIGHLIGHT /* Background fill for completed row */
+#define CFG_SEQ_COMPLETE_FG       COLOR_BACKGROUND     /* "INSTALLED" text color */
+#define CFG_SEQ_COMPLETE_BG       COLOR_CYBER_COMPLETE /* Background fill for completed row */
 #define CFG_SEQ_COMPLETE_TEXTS    "INSTALLED,INSTALLED,INSTALLED" /* Comma-separated, one per target */
-#define CFG_TEXT_SEQ_HEADER        "    ◰ SEQUENCE REQUIRED TO UPLOAD DAEMON"
+#define CFG_TEXT_SEQ_HEADER        "    ▞ SEQUENCE REQUIRED TO UPLOAD DAEMON"
 
 // --- Right Panel (outline around sequence section) ---
 
@@ -1425,7 +1427,7 @@ void DrawSequenceSection(int monitor, int ox, int oy, int cell_w, int cell_h,
       DrawBox(monitor, ox, oy, row_w, cell_h,
               CFG_SEQ_COMPLETE_BG, CFG_SEQ_HEX_OUTLINE_COMPLETE,
               complete_texts[t], complete_text_lens[t],
-              CFG_SEQ_HEX_COMPLETE_FG, 0);
+              CFG_SEQ_COMPLETE_FG, 0);
     } else {
       // Find longest prefix of this target matching a buffer suffix.
       int match_count = 0;
@@ -1451,9 +1453,11 @@ void DrawSequenceSection(int monitor, int ox, int oy, int cell_w, int cell_h,
         int matched = j < match_count;
         enum DrawColor code_color =
             matched ? CFG_SEQ_HEX_COMPLETE_FG : CFG_SEQ_HEX_FG;
+        enum DrawColor bg_color =
+            matched ? CFG_SEQ_HEX_COMPLETE_BG : NO_COLOR;
         enum DrawColor outline_color =
             matched ? CFG_SEQ_HEX_OUTLINE_COMPLETE : NO_COLOR;
-        DrawBox(monitor, sx, oy, cell_w, cell_h, NO_COLOR, outline_color,
+        DrawBox(monitor, sx, oy, cell_w, cell_h, bg_color, outline_color,
                 hex, hxlen, code_color, 0);
       }
     }
@@ -1497,38 +1501,24 @@ typedef struct {
   int initialized;
   float fill_dur;       /* Duration per fill frame */
   float clear_dur;      /* Duration per clear frame */
+  long long last_cycle; /* Cycle counter for regeneration (-1 = first) */
   char frames[DECO_MAX_FRAMES][DECO_FRAME_SIZE];
   float durations[DECO_MAX_FRAMES];
   const char *ptrs[DECO_MAX_FRAMES];
 } DecoMatrix;
 
-/*! \brief Initialize a decorative hex matrix animation.
- *
- * Generates frames: fill phase (random cells appear row-batch at a time)
- * then clear phase (rows disappear top to bottom). Loops via DrawAnimatedText.
+/*! \brief Generate frames for a decorative hex matrix with random 00-FF values.
  */
-void DecoMatrixInit(DecoMatrix *dm, int rows, int cols,
-                    float fill_dur, float clear_dur) {
-  if (rows > DECO_MAX_ROWS) rows = DECO_MAX_ROWS;
-  if (cols > DECO_MAX_COLS) cols = DECO_MAX_COLS;
-  dm->rows = rows;
-  dm->cols = cols;
-  dm->num_frames = rows * 2;
-  dm->fill_dur = fill_dur;
-  dm->clear_dur = clear_dur;
-  dm->initialized = 1;
-
+static void DecoMatrixGenFrames(DecoMatrix *dm) {
+  int rows = dm->rows, cols = dm->cols;
   int total = rows * cols;
 
-  // Random hex pair per cell.
+  // Random 00-FF hex pair per cell.
   char cells[DECO_MAX_ROWS][DECO_MAX_COLS][3];
   int fill_order[DECO_MAX_ROWS * DECO_MAX_COLS];
   for (int r = 0; r < rows; ++r)
     for (int c = 0; c < cols; ++c) {
-      const char *h = HEX_CODES[rand() % NUM_HEX_CODES];
-      cells[r][c][0] = h[0];
-      cells[r][c][1] = h[1];
-      cells[r][c][2] = '\0';
+      snprintf(cells[r][c], 3, "%02X", rand() % 256);
       fill_order[r * cols + c] = r * cols + c;
     }
   // Fisher-Yates shuffle.
@@ -1556,7 +1546,7 @@ void DecoMatrixInit(DecoMatrix *dm, int rows, int cols,
       }
     }
     *p = '\0';
-    dm->durations[f] = fill_dur;
+    dm->durations[f] = dm->fill_dur;
   }
 
   // Clear phase: remove rows top to bottom.
@@ -1571,18 +1561,50 @@ void DecoMatrixInit(DecoMatrix *dm, int rows, int cols,
       }
     }
     *p = '\0';
-    dm->durations[rows + f] = clear_dur;
+    dm->durations[rows + f] = dm->clear_dur;
   }
 
   for (int f = 0; f < dm->num_frames; ++f)
     dm->ptrs[f] = dm->frames[f];
 }
 
+/*! \brief Initialize a decorative hex matrix animation.
+ */
+void DecoMatrixInit(DecoMatrix *dm, int rows, int cols,
+                    float fill_dur, float clear_dur) {
+  if (rows > DECO_MAX_ROWS) rows = DECO_MAX_ROWS;
+  if (cols > DECO_MAX_COLS) cols = DECO_MAX_COLS;
+  dm->rows = rows;
+  dm->cols = cols;
+  dm->num_frames = rows * 2;
+  dm->fill_dur = fill_dur;
+  dm->clear_dur = clear_dur;
+  dm->initialized = 1;
+  dm->last_cycle = -1;
+  DecoMatrixGenFrames(dm);
+}
+
 /*! \brief Draw a decorative hex matrix animation.
+ *
+ * Regenerates random values each time the animation cycle restarts.
  */
 void DecoMatrixDraw(DecoMatrix *dm, int monitor, int x, int y,
                     enum DrawColor color) {
   if (!dm->initialized) return;
+
+  // Detect cycle restart to regenerate frames with fresh random values.
+  float total = 0;
+  for (int i = 0; i < dm->num_frames; ++i) total += dm->durations[i];
+  if (total > 0) {
+    struct timeval now;
+    gettimeofday(&now, NULL);
+    double t = (double)now.tv_sec + (double)now.tv_usec / 1000000.0;
+    long long cycle = (long long)(t / total);
+    if (dm->last_cycle >= 0 && cycle != dm->last_cycle)
+      DecoMatrixGenFrames(dm);
+    dm->last_cycle = cycle;
+  }
+
   DrawAnimatedText(monitor, x, y, color,
                    dm->ptrs, dm->num_frames, dm->durations);
 }
