@@ -2,7 +2,7 @@
 
 xsecurelock with cyberpunk 2077 fluff
 
-[![demo](./frame.png)](https://www.youtube.com/watch?v=kyRS4VMOcI8)
+[![demo](https://img.youtube.com/vi/kyRS4VMOcI8/0.jpg)](https://www.youtube.com/watch?v=kyRS4VMOcI8)
 
 #### Build
 ```bash
